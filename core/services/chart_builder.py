@@ -848,3 +848,274 @@ def chart_wasde_supply_demand(wasde_df, commodity='Beef', height=290):
     fig.update_xaxes(title_text='WASDE Report Date', color=SUB)
     fig.update_yaxes(tickformat=',.0f', title_text='Million Lbs')
     return to_json(fig)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DASHBOARD CHARTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def chart_dashboard_slaughter_sparkline(df, height=220):
+    """Cattle vs Hog slaughter — last 12 weeks sparkline."""
+    df = df.copy()
+    df['slaughter_date'] = pd.to_datetime(df['slaughter_date'], errors='coerce')
+    df = df[df['period'] == 'Current'].dropna(subset=['slaughter_date', 'slaughter'])
+    df['week_start'] = df['slaughter_date'] - pd.to_timedelta(df['slaughter_date'].dt.weekday, unit='D')
+
+    fig = go.Figure()
+    for commodity, color in [('Cattle', GOLD), ('Hogs', BLUE)]:
+        sub = df[df['commodity'] == commodity].groupby('week_start')['slaughter'].sum().reset_index()
+        sub = sub.sort_values('week_start').tail(12)
+        sub = _drop_partial(sub, 'slaughter')
+        # WoW % change
+        sub['wow'] = sub['slaughter'].pct_change() * 100
+        fig.add_trace(go.Scatter(
+            x=sub['week_start'], y=sub['slaughter'],
+            mode='lines+markers', name=commodity,
+            line=dict(color=color, width=2),
+            marker=dict(size=5),
+            connectgaps=False,
+            hovertemplate=f'{commodity}: %{{y:,.0f}} head<extra></extra>',
+        ))
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(title_text='', tickformat='%b %d')
+    fig.update_yaxes(tickformat=',.0f', title_text='Head')
+    return to_json(fig)
+
+
+def chart_dashboard_species_mix(df, height=220):
+    """Pie chart — cattle vs hog % of total weekly slaughter."""
+    df = df.copy()
+    df['slaughter_date'] = pd.to_datetime(df['slaughter_date'], errors='coerce')
+    df = df[df['period'] == 'Current'].dropna(subset=['slaughter_date', 'slaughter'])
+    df['week_start'] = df['slaughter_date'] - pd.to_timedelta(df['slaughter_date'].dt.weekday, unit='D')
+    latest_week = df['week_start'].max()
+    week_data = df[df['week_start'] == latest_week].groupby('commodity')['slaughter'].sum()
+    week_data = week_data[week_data.index.isin(['Cattle', 'Hogs'])]
+
+    fig = go.Figure(go.Pie(
+        labels=week_data.index.tolist(),
+        values=week_data.values.tolist(),
+        hole=0.55,
+        marker=dict(colors=[GOLD, BLUE]),
+        textfont=dict(size=12, color='#1A1D2E'),
+        hovertemplate='%{label}: %{value:,.0f} head (%{percent})<extra></extra>',
+    ))
+    fig.update_layout(
+        **_L(height=height),
+        annotations=[dict(text='This<br>Week', x=0.5, y=0.5, font_size=11,
+                          showarrow=False, font_color='#5A6077')],
+        showlegend=True,
+    )
+    return to_json(fig)
+
+
+def chart_dashboard_cow_donut(cow_df, height=220):
+    """Donut — dairy vs other cow slaughter latest week."""
+    cow_df = cow_df.copy()
+    cow_df['report_date'] = pd.to_datetime(cow_df['report_date'], errors='coerce')
+    cow_df = cow_df[cow_df['class_name'].isin(['Dairy Cows', 'Other Cows'])].dropna(subset=['volume'])
+    cow_df = cow_df[cow_df['volume'] > 1000]
+    latest = cow_df['report_date'].max()
+    week_data = cow_df[cow_df['report_date'] == latest].groupby('class_name')['volume'].sum()
+
+    fig = go.Figure(go.Pie(
+        labels=week_data.index.tolist(),
+        values=week_data.values.tolist(),
+        hole=0.55,
+        marker=dict(colors=[BLUE, ORANGE]),
+        textfont=dict(size=12, color='#1A1D2E'),
+        hovertemplate='%{label}: %{value:,.0f}<extra></extra>',
+    ))
+    fig.update_layout(
+        **_L(height=height),
+        annotations=[dict(text='Cow<br>Mix', x=0.5, y=0.5, font_size=11,
+                          showarrow=False, font_color='#5A6077')],
+        showlegend=True,
+    )
+    return to_json(fig)
+
+
+def chart_dashboard_cutout_sparkline(cutout_df, height=220):
+    """Choice vs Select cutout last 8 weeks sparkline."""
+    cutout_df = cutout_df.copy()
+    cutout_df['report_date'] = pd.to_datetime(cutout_df['report_date'], errors='coerce')
+    cutout_df = cutout_df.sort_values('report_date')
+
+    fig = go.Figure()
+    for attr, color in [('Choice', GOLD), ('Select', BLUE)]:
+        sub = cutout_df[cutout_df['attribute'] == attr].tail(40)
+        fig.add_trace(go.Scatter(
+            x=sub['report_date'], y=sub['value'],
+            mode='lines+markers', name=attr,
+            line=dict(color=color, width=2),
+            marker=dict(size=4),
+            connectgaps=False,
+            hovertemplate=f'{attr}: $%{{y:.2f}}<extra></extra>',
+        ))
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(tickformat='%b %d')
+    fig.update_yaxes(tickprefix='$', title_text='$/cwt')
+    return to_json(fig)
+
+
+def chart_dashboard_primal_heatmap(primal_df, height=220):
+    """Primal values bar — which cuts are hot vs cold this week."""
+    primal_df = primal_df.copy()
+    primal_df['report_date'] = pd.to_datetime(primal_df['report_date'], errors='coerce')
+    latest = primal_df['report_date'].max()
+    curr = primal_df[primal_df['report_date'] == latest].dropna(subset=['choice_600_900'])
+    prev_date = primal_df[primal_df['report_date'] < latest]['report_date'].max()
+    prev = primal_df[primal_df['report_date'] == prev_date].dropna(subset=['choice_600_900'])
+
+    merged = curr.merge(prev[['primal_desc', 'choice_600_900']], on='primal_desc', suffixes=('', '_prev'))
+    merged['pct_change'] = (merged['choice_600_900'] - merged['choice_600_900_prev']) / merged['choice_600_900_prev'] * 100
+    merged = merged.sort_values('pct_change', ascending=True)
+
+    colors = [GREEN if v >= 0 else RED for v in merged['pct_change']]
+    fig = go.Figure(go.Bar(
+        y=merged['primal_desc'], x=merged['pct_change'],
+        orientation='h',
+        marker_color=colors,
+        marker_line_width=0,
+        hovertemplate='%{y}: %{x:+.1f}%<extra></extra>',
+    ))
+    fig.add_vline(x=0, line_color='#9BA3B8', line_width=1)
+    fig.update_layout(**_L(height=height, margin=dict(l=80, r=10, t=14, b=10)))
+    fig.update_xaxes(ticksuffix='%', title_text='WoW % Change')
+    return to_json(fig)
+
+
+def chart_dashboard_cutout_vs_avg(cutout_df, height=220):
+    """Donut — is current Choice cutout above or below 5-year average."""
+    cutout_df = cutout_df.copy()
+    cutout_df['report_date'] = pd.to_datetime(cutout_df['report_date'], errors='coerce')
+    choice = cutout_df[cutout_df['attribute'] == 'Choice'].copy()
+    choice['week_of_year'] = choice['report_date'].dt.isocalendar().week
+    latest = choice.sort_values('report_date').iloc[-1]
+    curr_val = latest['value']
+    curr_wk = latest['week_of_year']
+    hist_avg = choice[
+        (choice['week_of_year'] == curr_wk) &
+        (choice['report_date'] < latest['report_date'])
+    ]['value'].mean()
+
+    if pd.isna(hist_avg):
+        hist_avg = curr_val
+
+    pct_above = ((curr_val - hist_avg) / hist_avg * 100)
+    label = f"{'Above' if pct_above >= 0 else 'Below'} avg<br>{abs(pct_above):.1f}%"
+    color = GREEN if pct_above >= 0 else RED
+
+    fig = go.Figure(go.Pie(
+        labels=['Current', 'Historical Avg'],
+        values=[curr_val, hist_avg],
+        hole=0.6,
+        marker=dict(colors=[color, '#E2E6EE']),
+        textinfo='none',
+        hovertemplate='%{label}: $%{value:.2f}<extra></extra>',
+        showlegend=False,
+    ))
+    fig.update_layout(
+        **_L(height=height),
+        annotations=[dict(text=label, x=0.5, y=0.5, font_size=11,
+                          showarrow=False, font_color='#1A1D2E', align='center')],
+    )
+    return to_json(fig)
+
+
+def chart_dashboard_cash_futures_sparkline(cash_df, futures_df, height=220):
+    """Cash vs futures last 8 weeks."""
+    cash_df = cash_df.copy()
+    futures_df = futures_df.copy()
+    cash_df['report_date'] = pd.to_datetime(cash_df['report_date'], errors='coerce')
+    futures_df['trading_day'] = pd.to_datetime(futures_df['trading_day'], errors='coerce')
+
+    cash = cash_df[(cash_df['class_description'] == 'ALL BEEF TYPE') &
+                   (cash_df['selling_basis'] == 'LIVE DELIVERED')].copy()
+    cash_w = cash.groupby(cash['report_date'].dt.to_period('W').apply(lambda r: r.start_time))['weighted_avg_price'].mean().reset_index()
+    cash_w.columns = ['date', 'cash']
+    cash_w = cash_w.tail(10)
+
+    le = futures_df[futures_df['commodity'] == 'LE'].copy()
+    fut_w = le.groupby(le['trading_day'].dt.to_period('W').apply(lambda r: r.start_time))['close'].mean().reset_index()
+    fut_w.columns = ['date', 'futures']
+    fut_w = fut_w.tail(10)
+
+    merged = pd.merge(cash_w, fut_w, on='date', how='inner').sort_values('date')
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=merged['date'], y=merged['cash'],
+        mode='lines+markers', name='Cash',
+        line=dict(color=GOLD, width=2), marker=dict(size=5),
+        hovertemplate='Cash: $%{y:.2f}<extra></extra>',
+    ))
+    fig.add_trace(go.Scatter(
+        x=merged['date'], y=merged['futures'],
+        mode='lines+markers', name='Futures',
+        line=dict(color=BLUE, width=2, dash='dash'), marker=dict(size=5),
+        hovertemplate='Futures: $%{y:.2f}<extra></extra>',
+    ))
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(tickformat='%b %d')
+    fig.update_yaxes(tickprefix='$')
+    return to_json(fig)
+
+
+def chart_dashboard_basis_gauge(cash_df, futures_df, height=220):
+    """Gauge chart — is basis wide, tight, or normal."""
+    try:
+        cash_df = cash_df.copy()
+        futures_df = futures_df.copy()
+        cash_df['report_date'] = pd.to_datetime(cash_df['report_date'], errors='coerce')
+        futures_df['trading_day'] = pd.to_datetime(futures_df['trading_day'], errors='coerce')
+
+        cash = cash_df[(cash_df['class_description'] == 'ALL BEEF TYPE') &
+                       (cash_df['selling_basis'] == 'LIVE DELIVERED')].copy()
+        latest_cash = cash.sort_values('report_date').tail(5)['weighted_avg_price'].mean()
+        le = futures_df[futures_df['commodity'] == 'LE'].copy()
+        le = le.sort_values('trading_day')
+        nearby = le.groupby('trading_day').first().reset_index()
+        latest_futures = nearby.tail(5)['close'].mean()
+        current_basis = latest_cash - latest_futures
+
+        # Historical basis range
+        cash_w = cash.groupby(cash['report_date'].dt.to_period('W').apply(lambda r: r.start_time))['weighted_avg_price'].mean().reset_index()
+        cash_w.columns = ['date', 'cash']
+        fut_w = nearby.groupby(nearby['trading_day'].dt.to_period('W').apply(lambda r: r.start_time))['close'].mean().reset_index()
+        fut_w.columns = ['date', 'futures']
+        merged = pd.merge(cash_w, fut_w, on='date', how='inner')
+        merged['basis'] = merged['cash'] - merged['futures']
+        basis_min = merged['basis'].quantile(0.1)
+        basis_max = merged['basis'].quantile(0.9)
+        basis_mid = merged['basis'].median()
+
+        fig = go.Figure(go.Indicator(
+            mode='gauge+number+delta',
+            value=round(current_basis, 2),
+            delta={'reference': round(basis_mid, 2), 'valueformat': '.2f'},
+            title={'text': 'Current Basis ($/cwt)', 'font': {'size': 12, 'color': '#5A6077'}},
+            number={'prefix': '$', 'valueformat': '.2f', 'font': {'color': '#1A1D2E', 'size': 20}},
+            gauge={
+                'axis': {'range': [basis_min, basis_max], 'tickprefix': '$',
+                         'tickfont': {'color': '#5A6077', 'size': 10}},
+                'bar': {'color': GOLD},
+                'bgcolor': '#F7F8FA',
+                'bordercolor': '#E2E6EE',
+                'steps': [
+                    {'range': [basis_min, basis_mid * 0.8], 'color': '#FDECEA'},
+                    {'range': [basis_mid * 0.8, basis_mid * 1.2], 'color': '#F0F7F0'},
+                    {'range': [basis_mid * 1.2, basis_max], 'color': '#E8F4ED'},
+                ],
+                'threshold': {
+                    'line': {'color': '#1A6E3C', 'width': 2},
+                    'thickness': 0.75,
+                    'value': round(basis_mid, 2),
+                },
+            },
+        ))
+        fig.update_layout(**_L(height=height, margin=dict(l=20, r=20, t=40, b=10)))
+        return to_json(fig)
+    except Exception as e:
+        return to_json(go.Figure().update_layout(**_L(height=height,
+            title=f'Basis gauge unavailable: {str(e)}')))

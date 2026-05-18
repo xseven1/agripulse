@@ -76,11 +76,128 @@ def _rich_wasde_summary(wasde_df):
 # ── DASHBOARD ──────────────────────────────────────────────────────────────────
 
 def dashboard(request):
+    # KPI data
     try:
-        cross_signal = ai.generate_cross_signal_insight({})
+        kpi_slaughter = dl.get_dashboard_kpis().to_dict(orient='records')
+    except Exception:
+        kpi_slaughter = []
+    try:
+        kpi_cutout = dl.get_dashboard_cutout_kpi().to_dict(orient='records')
+    except Exception:
+        kpi_cutout = []
+    try:
+        kpi_cash = dl.get_dashboard_cash_kpi().to_dict(orient='records')
+    except Exception:
+        kpi_cash = []
+
+    kpis = _compute_dashboard_kpis(kpi_slaughter, kpi_cutout, kpi_cash)
+
+    # Dashboard charts
+    charts = {}
+    try:
+        slaughter_df = dl.get_slaughter_all()
+        cow_df = dl.get_cow_harvest()
+        cutout_df = dl.get_cutout_all()
+        primal_df = dl.get_cattle_primals()
+        cash_df = dl.get_cash_cattle_all()
+        futures_df = dl.get_futures_endpoint_all()
+        charts = {
+            'slaughter_sparkline': json.dumps(cb.chart_dashboard_slaughter_sparkline(slaughter_df)),
+            'species_mix':         json.dumps(cb.chart_dashboard_species_mix(slaughter_df)),
+            'cow_donut':           json.dumps(cb.chart_dashboard_cow_donut(cow_df)),
+            'cutout_sparkline':    json.dumps(cb.chart_dashboard_cutout_sparkline(cutout_df)),
+            'primal_heatmap':      json.dumps(cb.chart_dashboard_primal_heatmap(primal_df)),
+            'cutout_vs_avg':       json.dumps(cb.chart_dashboard_cutout_vs_avg(cutout_df)),
+            'cash_futures_spark':  json.dumps(cb.chart_dashboard_cash_futures_sparkline(cash_df, futures_df)),
+            'basis_gauge':         json.dumps(cb.chart_dashboard_basis_gauge(cash_df, futures_df)),
+        }
     except Exception as e:
-        cross_signal = 'Market intelligence platform — select a module to begin.'
-    return render(request, 'dashboard.html', {'cross_signal': cross_signal})
+        charts = {}
+
+    try:
+        cross_signal = ai.generate_cross_signal_insight({
+            'slaughter': kpi_slaughter,
+            'cutout': kpi_cutout,
+            'cash': kpi_cash,
+        })
+    except Exception:
+        cross_signal = 'Select a module below to begin your market analysis.'
+
+    return render(request, 'dashboard.html', {
+        'cross_signal': cross_signal,
+        'kpis': kpis,
+        'charts': charts,
+    })
+
+
+def _compute_dashboard_kpis(slaughter_rows, cutout_rows, cash_rows):
+    """Compute WoW changes for dashboard KPI cards."""
+    kpis = {}
+    try:
+        for row in slaughter_rows:
+            commodity = row['commodity']
+            curr = row['slaughter']
+            prev = row['week_ago']
+            if curr and prev and prev > 0:
+                wow = (curr - prev) / prev * 100
+                kpis[commodity.lower() + '_slaughter'] = {
+                    'value': f"{curr:,.0f}",
+                    'delta': f"{wow:+.1f}%",
+                    'signal': 'bear' if wow > 2 else ('bull' if wow < -2 else 'neut'),
+                    'note': 'head vs last week',
+                }
+    except Exception:
+        pass
+
+    try:
+        cutout_by_attr = {}
+        for row in cutout_rows:
+            attr = row['attribute']
+            cutout_by_attr.setdefault(attr, []).append(row['value'])
+        for attr in ['Choice', 'Select']:
+            if attr in cutout_by_attr and len(cutout_by_attr[attr]) >= 2:
+                vals = cutout_by_attr[attr]
+                curr, prev = vals[0], vals[1]
+                wow = curr - prev
+                kpis[attr.lower() + '_cutout'] = {
+                    'value': f"${curr:.2f}",
+                    'delta': f"{wow:+.2f}",
+                    'signal': 'bull' if wow > 0 else ('bear' if wow < 0 else 'neut'),
+                    'note': '$/cwt vs last reading',
+                }
+        if 'Choice' in cutout_by_attr and 'Select' in cutout_by_attr:
+            choice_curr = cutout_by_attr['Choice'][0]
+            select_curr = cutout_by_attr['Select'][0]
+            choice_prev = cutout_by_attr['Choice'][1] if len(cutout_by_attr['Choice']) > 1 else choice_curr
+            select_prev = cutout_by_attr['Select'][1] if len(cutout_by_attr['Select']) > 1 else select_curr
+            spread_curr = choice_curr - select_curr
+            spread_prev = choice_prev - select_prev
+            wow = spread_curr - spread_prev
+            kpis['spread'] = {
+                'value': f"${spread_curr:.2f}",
+                'delta': f"+{wow:.2f} widening" if wow > 0 else f"{abs(wow):.2f} narrowing",
+                'signal': 'bull' if wow > 0 else ('bear' if wow < 0 else 'neut'),
+                'note': 'Choice/Select spread',
+            }
+    except Exception:
+        pass
+
+    try:
+        if len(cash_rows) >= 2:
+            curr = cash_rows[0]['weighted_avg_price']
+            prev = cash_rows[1]['weighted_avg_price']
+            if curr and prev and prev > 0:
+                wow = curr - prev
+                kpis['cash_price'] = {
+                    'value': f"${curr:.2f}",
+                    'delta': f"{wow:+.2f}",
+                    'signal': 'bull' if wow > 0 else ('bear' if wow < 0 else 'neut'),
+                    'note': '$/cwt vs prev day',
+                }
+    except Exception:
+        pass
+
+    return kpis
 
 
 # ── SLAUGHTER ──────────────────────────────────────────────────────────────────

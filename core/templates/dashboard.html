@@ -1,16 +1,120 @@
 {% extends 'base.html' %}
 {% block title %}— Dashboard{% endblock %}
 {% block content %}
+
 <div class="page-header">
-  <h1>Market Intelligence Dashboard</h1>
-  <p>Agricultural advisor platform — USDA &amp; CME data · Track 1</p>
+  <h1>AgriPulse Market Intelligence</h1>
+  <p>Weekly livestock market signals for ProAg advisors — USDA &amp; CME data</p>
 </div>
 
+<!-- CROSS SIGNAL AI -->
 <div class="cross-signal-card">
   <div class="insight-label">⚡ Cross-Signal AI Insight</div>
   <div class="insight-text">{{ cross_signal|linebreaksbr }}</div>
 </div>
 
+<!-- KPI CARDS -->
+<div class="section-label">Weekly Market Signals</div>
+<div class="kpi-row">
+  {% if kpis.cattle_slaughter %}
+  <a href="{% url 'slaughter' %}" class="kpi-card {{ kpis.cattle_slaughter.signal }}" style="text-decoration:none;">
+    <div class="kpi-label">🐄 Cattle Slaughter</div>
+    <div class="kpi-value">{{ kpis.cattle_slaughter.value }}</div>
+    <div class="kpi-delta {% if '-' in kpis.cattle_slaughter.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.cattle_slaughter.delta }}</div>
+    <div class="kpi-note">{{ kpis.cattle_slaughter.note }}</div>
+  </a>
+  {% endif %}
+  {% if kpis.hogs_slaughter %}
+  <a href="{% url 'slaughter' %}" class="kpi-card {{ kpis.hogs_slaughter.signal }}" style="text-decoration:none;">
+    <div class="kpi-label">🐷 Hog Slaughter</div>
+    <div class="kpi-value">{{ kpis.hogs_slaughter.value }}</div>
+    <div class="kpi-delta {% if '-' in kpis.hogs_slaughter.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.hogs_slaughter.delta }}</div>
+    <div class="kpi-note">{{ kpis.hogs_slaughter.note }}</div>
+  </a>
+  {% endif %}
+  {% if kpis.choice_cutout %}
+  <a href="{% url 'cutout' %}" class="kpi-card {{ kpis.choice_cutout.signal }}" style="text-decoration:none;">
+    <div class="kpi-label">🥩 Choice Cutout</div>
+    <div class="kpi-value">{{ kpis.choice_cutout.value }}</div>
+    <div class="kpi-delta {% if '-' in kpis.choice_cutout.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.choice_cutout.delta }}</div>
+    <div class="kpi-note">{{ kpis.choice_cutout.note }}</div>
+  </a>
+  {% endif %}
+  {% if kpis.spread %}
+  <a href="{% url 'cutout' %}" class="kpi-card {{ kpis.spread.signal }}" style="text-decoration:none;">
+    <div class="kpi-label">📊 Choice/Select Spread</div>
+    <div class="kpi-value">{{ kpis.spread.value }}</div>
+    <div class="kpi-delta {% if 'narrowing' in kpis.spread.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.spread.delta }}</div>
+    <div class="kpi-note">{{ kpis.spread.note }}</div>
+  </a>
+  {% endif %}
+  {% if kpis.cash_price %}
+  <a href="{% url 'cash_futures' %}" class="kpi-card {{ kpis.cash_price.signal }}" style="text-decoration:none;">
+    <div class="kpi-label">💵 Cash Cattle Price</div>
+    <div class="kpi-value">{{ kpis.cash_price.value }}</div>
+    <div class="kpi-delta {% if '-' in kpis.cash_price.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.cash_price.delta }}</div>
+    <div class="kpi-note">{{ kpis.cash_price.note }}</div>
+  </a>
+  {% endif %}
+</div>
+
+<!-- SUPPLY CHARTS -->
+<div class="section-label">Supply Snapshot</div>
+<div class="three-col">
+  <div class="chart-card">
+    <div class="why-label">How is slaughter volume trending?</div>
+    <div class="chart-title">Cattle vs Hog Slaughter — Last 12 Weeks</div>
+    <div id="slaughter_sparkline" class="chart-plot"></div>
+  </div>
+  <div class="chart-card">
+    <div class="why-label">What's the species mix this week?</div>
+    <div class="chart-title">Cattle vs Hog — Share of Total Slaughter</div>
+    <div id="species_mix" class="chart-plot"></div>
+  </div>
+  <div class="chart-card">
+    <div class="why-label">Are producers liquidating breeding herds?</div>
+    <div class="chart-title">Cow Slaughter — Dairy vs Other</div>
+    <div id="cow_donut" class="chart-plot"></div>
+  </div>
+</div>
+
+<!-- DEMAND CHARTS -->
+<div class="section-label">Demand Snapshot</div>
+<div class="three-col">
+  <div class="chart-card">
+    <div class="why-label">Where are cutout values trending?</div>
+    <div class="chart-title">Choice vs Select Cutout — Recent Weeks</div>
+    <div id="cutout_sparkline" class="chart-plot"></div>
+  </div>
+  <div class="chart-card">
+    <div class="why-label">Which primals moved most this week?</div>
+    <div class="chart-title">Beef Primal Week-Over-Week Change</div>
+    <div id="primal_heatmap" class="chart-plot"></div>
+  </div>
+  <div class="chart-card">
+    <div class="why-label">Is demand above or below normal?</div>
+    <div class="chart-title">Choice Cutout vs 5-Year Seasonal Average</div>
+    <div id="cutout_vs_avg" class="chart-plot"></div>
+  </div>
+</div>
+
+<!-- PRICE CHARTS -->
+<div class="section-label">Price Snapshot</div>
+<div class="two-col">
+  <div class="chart-card">
+    <div class="why-label">Is cash tracking futures?</div>
+    <div class="chart-title">Cash Price vs Nearby Futures — Last 8 Weeks</div>
+    <div id="cash_futures_spark" class="chart-plot"></div>
+  </div>
+  <div class="chart-card">
+    <div class="why-label">Is the basis wide, tight, or normal?</div>
+    <div class="chart-title">Current Basis vs Historical Range</div>
+    <div id="basis_gauge" class="chart-plot"></div>
+  </div>
+</div>
+
+<!-- MODULE NAV -->
+<div class="section-label">Modules</div>
 <div class="module-grid">
   <a href="{% url 'slaughter' %}" class="module-card">
     <div class="module-icon">📊</div>
@@ -43,5 +147,13 @@
     <div class="module-desc">Ask anything across all modules — context-aware market analyst</div>
   </a>
 </div>
-<p class="page-footer">AgriPulse · USDA &amp; CME Data · Track 1 · Syracuse University</p>
+
+<p class="page-footer">AgriPulse · USDA &amp; CME Data · Track 1 · Syracuse University · Built for ProAg</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CHARTS = {{ charts|safe }};
+Object.entries(CHARTS).forEach(([id, json]) => renderChart(id, json));
+</script>
 {% endblock %}

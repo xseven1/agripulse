@@ -183,3 +183,47 @@ def get_wasde_summary():
         ORDER BY report_date DESC
         LIMIT 30
     """)
+
+
+# ── DASHBOARD SPECIFIC ─────────────────────────────────────────────────────────
+
+def get_dashboard_kpis():
+    """All KPI data for dashboard cards — latest week vs previous week."""
+    return query_to_df("""
+        WITH ranked AS (
+            SELECT slaughter_date, commodity, slaughter, week_ago,
+                   ROW_NUMBER() OVER (PARTITION BY commodity ORDER BY slaughter_date DESC) as rn
+            FROM slaughter
+            WHERE source = 'harvest3' AND period = 'Current'
+              AND commodity IN ('Cattle', 'Hogs') AND slaughter > 1000
+        )
+        SELECT slaughter_date, commodity, slaughter, week_ago
+        FROM ranked WHERE rn = 1
+    """)
+
+
+def get_dashboard_cutout_kpi():
+    """Latest Choice and Select cutout for KPI cards."""
+    return query_to_df("""
+        WITH ranked AS (
+            SELECT report_date, attribute, value,
+                   ROW_NUMBER() OVER (PARTITION BY attribute ORDER BY report_date DESC) as rn
+            FROM cutout_values
+            WHERE attribute IN ('Choice', 'Select') AND value IS NOT NULL
+        )
+        SELECT report_date, attribute, value FROM ranked WHERE rn <= 7
+        ORDER BY attribute, report_date DESC
+    """)
+
+
+def get_dashboard_cash_kpi():
+    """Latest cash cattle price for KPI card."""
+    return query_to_df("""
+        SELECT report_date, weighted_avg_price
+        FROM cash_cattle
+        WHERE class_description = 'ALL BEEF TYPE'
+          AND selling_basis = 'LIVE DELIVERED'
+          AND weighted_avg_price BETWEEN 100 AND 400
+        ORDER BY report_date DESC
+        LIMIT 14
+    """)
