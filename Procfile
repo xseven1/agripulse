@@ -1,1 +1,1 @@
-web: gunicorn agripulse.wsgi --log-file -
+web: python manage.py collectstatic --noinput && gunicorn agripulse.wsgi --log-file -
