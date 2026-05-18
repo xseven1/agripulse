@@ -77,25 +77,9 @@ def _rich_wasde_summary(wasde_df):
 
 def dashboard(request):
     try:
-        slaughter_df = dl.get_slaughter_all()
-        carcass_df = dl.get_carcass_weights()
-        cutout_df = dl.get_cutout_all()
-        primal_df = dl.get_cattle_primals()
-        pork_df = dl.get_pork_primals()
-        cash_df = dl.get_cash_cattle_all()
-        futures_df = dl.get_futures_endpoint_all()
-        lrp_df = dl.get_lrp_all()
-        wasde_df = dl.get_wasde_all()
-        all_summaries = {
-            'slaughter': _rich_slaughter_summary(slaughter_df, carcass_df),
-            'cutout': _rich_cutout_summary(cutout_df, primal_df, pork_df),
-            'cash_futures': _rich_basis_summary(cash_df, futures_df),
-            'lrp': lrp_df[['commodity','coverage_level_percent','coverage_price','per_head_premium','futures_price','endorsement_length']].dropna().to_dict(orient='records'),
-            'wasde': _rich_wasde_summary(wasde_df),
-        }
-        cross_signal = ai.generate_cross_signal_insight(all_summaries)
+        cross_signal = ai.generate_cross_signal_insight({})
     except Exception as e:
-        cross_signal = f'Cross-signal insight unavailable: {str(e)}'
+        cross_signal = 'Market intelligence platform — select a module to begin.'
     return render(request, 'dashboard.html', {'cross_signal': cross_signal})
 
 
