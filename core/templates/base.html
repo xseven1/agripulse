@@ -16,7 +16,7 @@
     🌾 AgriPulse <span>by ProAg</span>
   </a>
   <div class="nav-links">
-    <a href="{% url 'dashboard' %}" class="nav-home" title="Dashboard">⌂</a>
+    <a href="{% url 'dashboard' %}" class="nav-home">Home</a>
     <a href="{% url 'slaughter' %}"    class="nav-link {% if request.resolver_match.url_name == 'slaughter' %}active{% endif %}">Slaughter</a>
     <a href="{% url 'cutout' %}"       class="nav-link {% if request.resolver_match.url_name == 'cutout' %}active{% endif %}">Cutout</a>
     <a href="{% url 'cash_futures' %}" class="nav-link {% if request.resolver_match.url_name == 'cash_futures' %}active{% endif %}">Cash/Futures</a>
