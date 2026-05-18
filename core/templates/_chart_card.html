@@ -1,0 +1,26 @@
+{# Reusable chart card — include with: why, title, desc, chart_id, chart_json #}
+<div class="chart-card">
+  <div class="why-label">{{ why }}</div>
+  <div class="chart-title">{{ title }}</div>
+  <p class="chart-desc">{{ desc }}</p>
+  <div class="chart-plot" id="{{ chart_id }}"></div>
+  <div class="chart-ai-bar">
+    <div class="chart-ai-insight" id="insight-{{ chart_id }}">Click "AI Insight" to analyze this chart.</div>
+    <div class="chart-ai-btns">
+      <button class="btn-ai-insight" id="btn-insight-{{ chart_id }}"
+              onclick="loadChartInsight('{{ chart_id }}')">✦ AI Insight</button>
+      <button class="btn-ai-ask"
+              onclick="toggleAskPanel('{{ chart_id }}')">💬 Ask</button>
+    </div>
+  </div>
+  <div class="chart-ask-panel" id="ask-panel-{{ chart_id }}">
+    <div class="chart-ask-history" id="ask-history-{{ chart_id }}"></div>
+    <div class="chart-ask-input-row">
+      <input class="chart-ask-input" id="ask-input-{{ chart_id }}"
+             data-chart-id="{{ chart_id }}"
+             placeholder="What trends have I missed in this chart?"/>
+      <button class="btn-ask-send" id="ask-send-{{ chart_id }}"
+              onclick="askChart('{{ chart_id }}')">Ask</button>
+    </div>
+  </div>
+</div>

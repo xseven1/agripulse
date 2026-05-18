@@ -1,0 +1,32 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AgriPulse {% block title %}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}"/>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+<nav class="navbar">
+  <a href="{% url 'dashboard' %}" class="nav-brand">🌾 AgriPulse</a>
+  <div class="nav-links">
+    <a href="{% url 'slaughter' %}"   class="nav-link {% if request.resolver_match.url_name == 'slaughter' %}active{% endif %}">Slaughter</a>
+    <a href="{% url 'cutout' %}"      class="nav-link {% if request.resolver_match.url_name == 'cutout' %}active{% endif %}">Cutout</a>
+    <a href="{% url 'cash_futures' %}" class="nav-link {% if request.resolver_match.url_name == 'cash_futures' %}active{% endif %}">Cash/Futures</a>
+    <a href="{% url 'lrp' %}"         class="nav-link {% if request.resolver_match.url_name == 'lrp' %}active{% endif %}">LRP</a>
+    <a href="{% url 'wasde' %}"       class="nav-link {% if request.resolver_match.url_name == 'wasde' %}active{% endif %}">WASDE</a>
+    <a href="{% url 'chatbot' %}"     class="nav-link nav-chat {% if request.resolver_match.url_name == 'chatbot' %}active{% endif %}">💬 AI Chat</a>
+  </div>
+</nav>
+<main class="main-content">
+  {% block content %}{% endblock %}
+</main>
+<script src="{% static 'js/charts.js' %}"></script>
+<script src="{% static 'js/chart_ai.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

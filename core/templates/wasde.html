@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}— WASDE Digest{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>WASDE Impact Digest</h1>
+  <p>What did the USDA change this month? Which revisions are market-moving?</p>
+</div>
+
+<div class="module-insight">
+  <div class="insight-label">🤖 AI Module Insight</div>
+  <div class="insight-text">{{ insight|linebreaksbr }}</div>
+</div>
+
+<div class="section-label">Production Forecasts — Revision Tracking</div>
+<div class="two-col">
+  {% with why="Is USDA revising beef production up or down?" title="Beef Production Forecast — By Market Year" desc="Each line = one marketing year. Shows how USDA's beef production forecast has changed across consecutive WASDE reports. Downward revisions = tightening supply = bullish for prices." chart_id="wasde_production_beef" %}
+  {% include '_chart_card.html' %}{% endwith %}
+
+  {% with why="Is USDA revising pork production up or down?" title="Pork Production Forecast — By Market Year" desc="Pork production revisions across consecutive WASDE reports. Compare direction and magnitude to beef revisions to understand relative supply pressure between species." chart_id="wasde_production_pork" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<div class="section-label">Largest Revisions This Cycle</div>
+<div class="solo-center">
+  {% with why="Which revision matters most this month?" title="Largest WASDE Revisions vs. Prior Report" desc="Green = upward revision. Red = downward. Sorted by magnitude. Supply-side downward revisions and demand-side upward revisions are both bullish. This chart shows where the USDA changed its mind the most." chart_id="wasde_revisions" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<div class="section-label">Price Forecasts & Supply/Demand Balance</div>
+<div class="two-col">
+  {% with why="What is USDA forecasting for cattle and hog prices?" title="WASDE Price Forecasts — Steers &amp; Barrows/Gilts" desc="USDA's official price forecasts across report dates. Rising forecasts = USDA becoming more bullish. Compare to current cash market levels to see if the market is running ahead of or behind USDA expectations." chart_id="wasde_price_forecasts" %}
+  {% include '_chart_card.html' %}{% endwith %}
+
+  {% with why="Is supply or demand being revised more aggressively?" title="Beef Supply vs. Demand Attributes — Across Reports" desc="Gold/orange lines = supply-side attributes (production, total supply). Blue/teal lines = demand-side (total use, exports). Tightening spread between supply and demand = bullish price signal." chart_id="wasde_supply_demand" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<p class="page-footer">AgriPulse · USDA WASDE Data · Track 1</p>
+{% endblock %}
+{% block scripts %}
+<script>
+const CHARTS = {{ charts|safe }};
+Object.keys(CHARTS).forEach(id => { renderChart(id, CHARTS[id]); initChartAI(id); });
+</script>
+{% endblock %}

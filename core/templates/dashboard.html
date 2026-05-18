@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}— Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Market Intelligence Dashboard</h1>
+  <p>Agricultural advisor platform — USDA &amp; CME data · Track 1</p>
+</div>
+
+<div class="cross-signal-card">
+  <div class="insight-label">⚡ Cross-Signal AI Insight</div>
+  <div class="insight-text">{{ cross_signal|linebreaksbr }}</div>
+</div>
+
+<div class="module-grid">
+  <a href="{% url 'slaughter' %}" class="module-card">
+    <div class="module-icon">📊</div>
+    <div class="module-name">Slaughter Pace Tracker</div>
+    <div class="module-desc">Weekly harvest, cow slaughter, carcass weights, implied production</div>
+  </a>
+  <a href="{% url 'cutout' %}" class="module-card">
+    <div class="module-icon">🥩</div>
+    <div class="module-name">Cutout Value Demand Signal</div>
+    <div class="module-desc">Choice/Select spread, beef &amp; pork primals, seasonal patterns</div>
+  </a>
+  <a href="{% url 'cash_futures' %}" class="module-card">
+    <div class="module-icon">📈</div>
+    <div class="module-name">Cash vs. Futures Spread</div>
+    <div class="module-desc">Basis tracking, historical band, seasonal patterns, futures curve</div>
+  </a>
+  <a href="{% url 'lrp' %}" class="module-card">
+    <div class="module-icon">🛡</div>
+    <div class="module-name">LRP Insurance Helper</div>
+    <div class="module-desc">Coverage vs futures, premium curves, subsidy value, net floor analysis</div>
+  </a>
+  <a href="{% url 'wasde' %}" class="module-card">
+    <div class="module-icon">📋</div>
+    <div class="module-name">WASDE Impact Digest</div>
+    <div class="module-desc">Supply/demand revisions, price forecasts, month-over-month changes</div>
+  </a>
+  <a href="{% url 'chatbot' %}" class="module-card">
+    <div class="module-icon">💬</div>
+    <div class="module-name">AI Market Assistant</div>
+    <div class="module-desc">Ask anything across all modules — context-aware market analyst</div>
+  </a>
+</div>
+<p class="page-footer">AgriPulse · USDA &amp; CME Data · Track 1 · Syracuse University</p>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}— LRP Insurance{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>LRP Insurance Helper</h1>
+  <p>When does LRP make sense over a straight futures hedge? What is the cost of protection right now?</p>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Commodity:</span>
+  {% for c in commodities %}
+  <a href="?commodity={{ c }}" class="filter-btn {% if commodity == c %}active{% endif %}">{{ c }}</a>
+  {% endfor %}
+</div>
+
+<div class="module-insight">
+  <div class="insight-label">🤖 AI Module Insight</div>
+  <div class="insight-text">{{ insight|linebreaksbr }}</div>
+</div>
+
+<div class="section-label">Coverage Price vs. Futures</div>
+<div class="two-col">
+  {% with why="How does LRP floor compare to current futures?" title="LRP Coverage Price vs. Futures — By Endorsement Length" desc="Each line = one endorsement length. Red dashed line = current futures price. Coverage lines above the futures line = LRP floor exceeds futures — meaningful downside protection." chart_id="lrp_coverage_vs_futures" %}
+  {% include '_chart_card.html' %}{% endwith %}
+
+  {% with why="What does the government subsidy actually save producers?" title="Producer Premium vs. USDA Subsidy — By Coverage Level" desc="Gold = what producer pays per head. Green = USDA subsidy. Stacked = total premium cost. The subsidy makes higher coverage levels far cheaper than private puts." chart_id="lrp_subsidy" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<div class="section-label">Cost of Protection</div>
+<div class="two-col">
+  {% with why="What does LRP cost per head at each coverage level?" title="Producer Premium per Head — By Coverage Level &amp; Length" desc="Cost after USDA subsidy. Each line = one endorsement length. Shows how premium rises steeply above 95% coverage and how longer endorsements cost more for the same level." chart_id="lrp_premium_curve" %}
+  {% include '_chart_card.html' %}{% endwith %}
+
+  {% with why="Does LRP actually beat a straight futures hedge?" title="LRP Net Floor vs. Futures Price — By Coverage Level" desc="Net floor = coverage price minus premium. Green = LRP floor exceeds futures price (LRP wins). Red = futures price higher (futures hedge wins). Shows the coverage level where LRP becomes the better tool." chart_id="lrp_net_floor" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<p class="page-footer">AgriPulse · USDA RMA Data · Track 1</p>
+{% endblock %}
+{% block scripts %}
+<script>
+const CHARTS = {{ charts|safe }};
+Object.keys(CHARTS).forEach(id => { renderChart(id, CHARTS[id]); initChartAI(id); });
+</script>
+{% endblock %}

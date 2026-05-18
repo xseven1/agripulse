@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}— {{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">{{ page_title }}</h1>
+  <p class="page-sub">{{ page_sub }}</p>
+</div>
+
+{% if commodity_selector %}
+<div class="filter-bar">
+  <span class="filter-label">Commodity:</span>
+  {% for c in commodities %}
+  <a href="?commodity={{ c }}"
+     class="filter-btn {% if commodity == c %}active{% endif %}">{{ c }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="insight-card">
+  <div class="card-label">🤖 AI Insight</div>
+  <div class="insight-text" id="insight-text">{{ insight|linebreaksbr }}</div>
+</div>
+
+<div class="charts-grid">
+  <div class="chart-box" id="chart1"></div>
+  <div class="chart-box chart-box--wide" id="chart2"></div>
+  <div class="chart-box" id="chart3"></div>
+</div>
+
+<div class="chat-trigger">
+  <a href="{% url 'chatbot' %}?module={{ module }}" class="btn-chat">
+    💬 Ask AI about this module
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const chart1Data = {{ chart1|safe }};
+  const chart2Data = {{ chart2|safe }};
+  const chart3Data = {{ chart3|safe }};
+  renderCharts([
+    { id: 'chart1', data: chart1Data },
+    { id: 'chart2', data: chart2Data },
+    { id: 'chart3', data: chart3Data },
+  ]);
+</script>
+{% endblock %}

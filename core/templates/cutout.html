@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}— Cutout Values{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Cutout Value Demand Signal</h1>
+  <p>How strong is consumer demand for beef right now? Is Choice commanding a premium over Select?</p>
+</div>
+
+<div class="module-insight">
+  <div class="insight-label">🤖 AI Module Insight</div>
+  <div class="insight-text">{{ insight|linebreaksbr }}</div>
+</div>
+
+<div class="section-label">Cutout Value — Current vs History</div>
+<div class="two-col">
+  {% with why="What does a normal year look like?" title="Seasonal Cutout Pattern — Historical Average" desc="Average weekly Choice (gold) and Select (blue) cutout by week of year across all historical years. Shows the typical seasonal shape — when demand peaks and when it softens." chart_id="seasonal_avg_cutout" %}
+  {% include '_chart_card.html' %}{% endwith %}
+
+  {% with why="Where are beef prices sitting vs. the normal range?" title="Choice vs. Select Cutout — This Year vs 5-Year Band" desc="This year's Choice and Select cutout values plotted against the 5-year historical range. Points above the band = historically elevated demand." chart_id="cutout_seasonal" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<div class="section-label">Quality Demand — Choice/Select Spread</div>
+<div class="solo-center">
+  {% with why="Are buyers paying a premium for higher-quality beef?" title="Choice-Select Spread Over Time" desc="Dollar difference between Choice and Select cutout. A widening spread signals buyers are willing to pay more for higher-grade beef — a bullish quality demand indicator. Dotted line = historical average." chart_id="choice_select_spread" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<div class="section-label">Year-Over-Year Performance</div>
+<div class="two-col">
+  {% with why="Has Choice been consistently above or below last year?" title="Choice Cutout % Change vs. Year Ago" desc="Each bar = one week. Green = this year's Choice cutout above same week last year. Red = below. Consistent green = sustained demand strength." chart_id="choice_yoy" %}
+  {% include '_chart_card.html' %}{% endwith %}
+
+  {% with why="Is Select telling the same story as Choice?" title="Select Cutout % Change vs. Year Ago" desc="Same comparison for Select. Divergence between Choice and Select % change reveals whether quality demand or broad demand is driving the move." chart_id="select_yoy" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<div class="section-label">Primal Breakdown — Where Demand Is Coming From</div>
+<div class="two-col">
+  {% with why="Which beef cuts are leading the move?" title="Beef Primal Values — All Cuts This Year" desc="Weekly price for each major beef primal: rib, loin, chuck, round, brisket, plate, flank. Rib and loin strength = quality consumer demand. Chuck and round = volume demand." chart_id="beef_primals" %}
+  {% include '_chart_card.html' %}{% endwith %}
+
+  {% with why="How does pork value compare?" title="Pork Primal Values — All Cuts This Year" desc="Weekly pork primal values: belly, loin, ham, butt, rib. Belly is the most volatile and tends to lead total pork cutout. Rising belly + ham = bullish pork demand signal." chart_id="pork_primals" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<p class="page-footer">AgriPulse · USDA Data · Track 1</p>
+{% endblock %}
+{% block scripts %}
+<script>
+const CHARTS = {{ charts|safe }};
+Object.keys(CHARTS).forEach(id => { renderChart(id, CHARTS[id]); initChartAI(id); });
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}— AI Assistant{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>AgriPulse AI Assistant</h1>
+  <p>Ask anything about market data, charts, or advisor recommendations across all modules</p>
+</div>
+
+<div class="chat-container">
+  <div class="chat-module-selector">
+    <span class="filter-label">Context:</span>
+    <button class="filter-btn active" data-module="general">General</button>
+    <button class="filter-btn" data-module="slaughter">Slaughter</button>
+    <button class="filter-btn" data-module="cutout">Cutout</button>
+    <button class="filter-btn" data-module="cash_futures">Cash/Futures</button>
+    <button class="filter-btn" data-module="lrp">LRP</button>
+    <button class="filter-btn" data-module="wasde">WASDE</button>
+  </div>
+
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-msg chat-msg--ai">
+      <div class="msg-label">AgriPulse AI</div>
+      <div class="msg-body">Hello. I'm your agricultural market analyst. Ask me about slaughter pace, cutout values, basis spreads, LRP insurance, WASDE projections, or anything across modules. Select a context above to load module-specific data.</div>
+    </div>
+  </div>
+
+  <div class="chat-input-row">
+    <input type="text" id="chat-input" class="chat-input"
+           placeholder="e.g. Is the basis historically wide right now?"/>
+    <button id="chat-send" class="btn-send">Send</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/chatbot.js' %}"></script>
+<script>
+(async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const moduleParam = urlParams.get('module');
+  if (moduleParam) {
+    document.querySelectorAll('.filter-btn[data-module]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.module === moduleParam);
+    });
+    currentModule = moduleParam;
+    currentContext = await fetchModuleContext(moduleParam);
+  }
+})();
+</script>
+{% endblock %}

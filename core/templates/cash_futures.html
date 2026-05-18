@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}— Cash vs. Futures{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Cash vs. Futures Spread</h1>
+  <p>Is the live market above or below what futures predicted? How wide is the basis, and is that unusual?</p>
+</div>
+
+<div class="module-insight">
+  <div class="insight-label">🤖 AI Module Insight</div>
+  <div class="insight-text">{{ insight|linebreaksbr }}</div>
+</div>
+
+<div class="section-label">Price Comparison</div>
+<div class="two-col">
+  {% with why="Is cash trading above or below futures right now?" title="Cash Price vs. Nearby Live Cattle Futures" desc="Weekly cash cattle price (gold) and nearby LE futures (blue) on the same axis. The gap between them is the basis. Both in $/cwt live weight." chart_id="cash_vs_futures" %}
+  {% include '_chart_card.html' %}{% endwith %}
+
+  {% with why="Which direction is the basis trending?" title="Weekly Basis with 4-Week Rolling Average" desc="Green bars = cash above futures. Red = cash below. Gold line = 4-week rolling average smoothing out noise. Rising average = strengthening basis for producers." chart_id="basis_rolling" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<div class="section-label">Historical Context</div>
+<div class="solo-center">
+  {% with why="Is the current basis historically unusual?" title="Current Year Basis vs. 5-Year Historical Range" desc="This year's basis (gold) vs the prior 5-year range (band). Points above the band = unusually strong basis for producers. Below the band = unusually weak — could indicate hedging opportunity or packer margin pressure." chart_id="basis_band" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<div class="section-label">Seasonal Pattern & Forward Curve</div>
+<div class="two-col">
+  {% with why="What's the seasonal pattern in basis?" title="Average Basis by Calendar Month — All Years" desc="Historical average basis by month across all data. Shows which months typically see cash above or below futures — essential seasonal context for hedging timing decisions." chart_id="basis_by_month" %}
+  {% include '_chart_card.html' %}{% endwith %}
+
+  {% with why="What is the market pricing in for future delivery?" title="Live Cattle Futures Curve — Current" desc="Futures price by contract month. Contango (deferred higher) = market expects prices to rise. Backwardation (deferred lower) = market expects prices to fall. Shape matters as much as level." chart_id="futures_curve" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<p class="page-footer">AgriPulse · USDA &amp; CME Data · Track 1</p>
+{% endblock %}
+{% block scripts %}
+<script>
+const CHARTS = {{ charts|safe }};
+Object.keys(CHARTS).forEach(id => { renderChart(id, CHARTS[id]); initChartAI(id); });
+</script>
+{% endblock %}
