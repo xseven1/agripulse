@@ -83,7 +83,7 @@ DATA_DIR = BASE_DIR / 'data'
 
 # OpenRouter
 OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
-OPENROUTER_MODEL = 'openai/gpt-oss-120b:free'  # swap to gpt-oss-120b once confirmed
+OPENROUTER_MODEL = 'openai/gpt-4o'  # swap to gpt-oss-120b once confirmed
 
 # Cache — per-module AI insights cached for 1 day
 CACHES = {

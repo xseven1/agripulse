@@ -26,6 +26,8 @@ Do NOT use any of the following: asterisks, dashes at line start, underscores, p
 Maximum 4 numbered points. One sentence each. Never speculate beyond the data."""
 
 MODULE_PROMPTS = {
+    'slaughter_cattle': "Analyze this CATTLE slaughter and carcass weight data. Identify: is cattle slaughter pace running ahead or behind year-ago, what carcass weight trends imply about feedlot conditions, and what the combined signal means for near-term beef supply and prices.",
+    'slaughter_hogs': "Analyze this HOG slaughter data. Identify: is hog slaughter pace running ahead or behind year-ago, what the pace implies for near-term pork supply pressure, and whether the trend is accelerating or decelerating.",
     'slaughter': "Analyze this slaughter pace and carcass weight data. Identify whether pace is running ahead or behind year-ago, what that implies for near-term beef supply, and any anomalies in carcass weights. Flag cross-signal issues if relevant.",
     'cutout': "Analyze this beef cutout value and primal data. Identify whether the Choice/Select spread is widening or narrowing, which primals are leading or lagging, and whether current cutout levels are historically elevated or depressed.",
     'cash_futures': "Analyze this cash cattle vs futures data. Identify whether basis is historically wide or tight, what it implies for producer hedging decisions, and any convergence or divergence trends worth flagging.",

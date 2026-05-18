@@ -47,6 +47,7 @@ class Command(BaseCommand):
         self.load_wasde()
         self.load_cow_harvest()
         self.load_pork_primals()
+        self.load_harvest_usda()
         self.stdout.write(self.style.SUCCESS('All data loaded successfully.'))
 
     def load_slaughter(self):
@@ -325,3 +326,23 @@ class Command(BaseCommand):
         ]
         PorkPrimal.objects.bulk_create(objs, batch_size=500)
         self.stdout.write(f'  Pork primals: {len(objs)} rows')
+
+    def load_harvest_usda(self):
+        from core.models import HarvestUSDA
+        self.stdout.write('Loading Harvest USDA...')
+        HarvestUSDA.objects.all().delete()
+        df = pd.read_csv(DATA_DIR / 'Harvest - USDA.csv')
+        objs = [
+            HarvestUSDA(
+                report_date=parse_date(row.get('report_date')),
+                for_date_begin=parse_date(row.get('for_date_begin')),
+                avg_carcass_weight=clean(row.get('avg_carcass_weight')),
+                avg_backfat=clean(row.get('avg_backfat')),
+                wtd_avg_base=clean(row.get('wtd_avg_base')),
+                wtd_avg_net_price=clean(row.get('wtd_avg_net_price')),
+                week_of_year=clean(row.get('WeekofYear')),
+                year=clean(row.get('Year')),
+            ) for _, row in df.iterrows()
+        ]
+        HarvestUSDA.objects.bulk_create(objs, batch_size=500)
+        self.stdout.write(f'  Harvest USDA: {len(objs)} rows')

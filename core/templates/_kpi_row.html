@@ -1,0 +1,11 @@
+{% if kpis %}
+<div class="kpi-row">
+  {% for key, card in kpis.items %}
+  <div class="kpi-card {{ card.signal }}">
+    <div class="kpi-label">{{ card.note }}</div>
+    <div class="kpi-value">{{ card.value }}</div>
+    <div class="kpi-delta {% if '-' in card.delta %}delta-neg{% elif '+' in card.delta %}delta-pos{% else %}delta-neu{% endif %}">{{ card.delta }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

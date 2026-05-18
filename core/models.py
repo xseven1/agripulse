@@ -211,3 +211,18 @@ class PorkPrimal(models.Model):
     class Meta:
         db_table = 'pork_primals'
         indexes = [models.Index(fields=['report_date', 'commodity'])]
+
+
+class HarvestUSDA(models.Model):
+    report_date = models.DateField(null=True)
+    for_date_begin = models.DateField(null=True)
+    avg_carcass_weight = models.FloatField(null=True)
+    avg_backfat = models.FloatField(null=True)
+    wtd_avg_base = models.FloatField(null=True)
+    wtd_avg_net_price = models.FloatField(null=True)
+    week_of_year = models.IntegerField(null=True)
+    year = models.IntegerField(null=True)
+
+    class Meta:
+        db_table = 'harvest_usda'
+        indexes = [models.Index(fields=['report_date'])]

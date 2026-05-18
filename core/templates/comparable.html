@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block title %}— Market Analogs{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Comparable Week Finder</h1>
+  <p>Find the most similar historical market weeks and see what happened next — powered by data going back to 2004.</p>
+</div>
+
+<!-- SPECIES TOGGLE -->
+<div class="filter-bar" style="margin-bottom:1rem;">
+  <span class="filter-label">Species:</span>
+  <a href="?species=cattle{% if selected_week %}&week={{ selected_week }}{% endif %}"
+     class="filter-btn {% if species == 'cattle' or not species %}active{% endif %}">🐄 Cattle</a>
+  <a href="?species=hogs{% if selected_week %}&week={{ selected_week }}{% endif %}"
+     class="filter-btn {% if species == 'hogs' %}active{% endif %}">🐷 Hogs</a>
+</div>
+
+<!-- WEEK SELECTOR -->
+<div class="comparable-week-card">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold);font-weight:700;margin-bottom:.4rem;">Analyzing Week</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--text);">
+        {{ target_metrics.week|default:"Latest Available Week" }}
+      </div>
+    </div>
+    <form method="get" style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+      <label style="font-size:.78rem;font-weight:600;color:var(--sub);">Compare a different week:</label>
+      <select name="week" class="calendar-input" onchange="this.form.submit()">
+        <option value="">— Latest week —</option>
+        {% for w in available_weeks %}
+        <option value="{{ w }}" {% if w == selected_week %}selected{% endif %}>{{ w }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <!-- Current week metrics -->
+  {% if target_metrics %}
+  <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border);">
+    <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--sub);font-weight:600;margin-bottom:.6rem;">Current Week Snapshot</div>
+    <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+      {% if species == 'hogs' %}
+        {% if target_metrics.pork_carcass %}
+        <div><div style="font-size:.7rem;color:var(--muted);">Pork Carcass Value</div><div style="font-weight:600;color:var(--text);">{{ target_metrics.pork_carcass }}</div></div>
+        {% endif %}
+        {% if target_metrics.belly_value %}
+        <div><div style="font-size:.7rem;color:var(--muted);">Belly Value</div><div style="font-weight:600;color:var(--text);">{{ target_metrics.belly_value }}</div></div>
+        {% endif %}
+        {% if target_metrics.hog_carcass_weight %}
+        <div><div style="font-size:.7rem;color:var(--muted);">Hog Carcass Weight</div><div style="font-weight:600;color:var(--text);">{{ target_metrics.hog_carcass_weight }}</div></div>
+        {% endif %}
+        {% if target_metrics.cash_hog_price %}
+        <div><div style="font-size:.7rem;color:var(--muted);">Cash Hog Price</div><div style="font-weight:600;color:var(--text);">{{ target_metrics.cash_hog_price }}</div></div>
+        {% endif %}
+      {% else %}
+        {% if target_metrics.choice_cutout %}
+        <div><div style="font-size:.7rem;color:var(--muted);">Choice Cutout</div><div style="font-weight:600;color:var(--text);">{{ target_metrics.choice_cutout }}</div></div>
+        {% endif %}
+        {% if target_metrics.select_cutout %}
+        <div><div style="font-size:.7rem;color:var(--muted);">Select Cutout</div><div style="font-weight:600;color:var(--text);">{{ target_metrics.select_cutout }}</div></div>
+        {% endif %}
+        {% if target_metrics.spread %}
+        <div><div style="font-size:.7rem;color:var(--muted);">C/S Spread</div><div style="font-weight:600;color:var(--text);">{{ target_metrics.spread }}</div></div>
+        {% endif %}
+        {% if target_metrics.carcass_weight %}
+        <div><div style="font-size:.7rem;color:var(--muted);">Carcass Weight</div><div style="font-weight:600;color:var(--text);">{{ target_metrics.carcass_weight }}</div></div>
+        {% endif %}
+        {% if target_metrics.cash_price %}
+        <div><div style="font-size:.7rem;color:var(--muted);">Cash Price</div><div style="font-weight:600;color:var(--text);">{{ target_metrics.cash_price }}</div></div>
+        {% endif %}
+      {% endif %}
+      <div><div style="font-size:.7rem;color:var(--muted);">Week of Year</div><div style="font-weight:600;color:var(--text);">Week {{ target_metrics.week_of_year }}</div></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- AI ANALOG INSIGHT -->
+{% if ai_insight %}
+<div class="module-insight">
+  <div class="insight-label">🤖 Historical Analog AI Insight</div>
+  <div class="insight-text">{{ ai_insight|linebreaksbr }}</div>
+</div>
+{% endif %}
+
+<!-- ERROR -->
+{% if error %}
+<div class="alert alert-warning">{{ error }}</div>
+{% endif %}
+
+<!-- MATCHES -->
+{% if matches %}
+<div class="section-label">Top 3 Historical Analogs — Most Similar Market Weeks Since 2004</div>
+
+{% for match in matches %}
+<div class="comparable-match" style="margin-bottom:1rem;">
+  <div class="comparable-match-header">
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <span class="comparable-match-date">{{ match.week }}</span>
+      <span style="font-size:.72rem;color:var(--sub);">Week {{ match.metrics.week_of_year }} of {{ match.year }}</span>
+    </div>
+    <span class="comparable-match-score">{{ match.similarity }}% similar</span>
+  </div>
+
+  <!-- Metric comparison -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem;margin:.75rem 0;">
+    {% if match.metrics.choice_cutout %}
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.5rem .7rem;">
+      <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">Choice Cutout</div>
+      <div style="font-weight:600;color:var(--text);font-size:.95rem;">{{ match.metrics.choice_cutout }}</div>
+      {% if target_metrics.choice_cutout %}<div style="font-size:.68rem;color:var(--muted);">Now: {{ target_metrics.choice_cutout }}</div>{% endif %}
+    </div>
+    {% endif %}
+    {% if match.metrics.spread %}
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.5rem .7rem;">
+      <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">C/S Spread</div>
+      <div style="font-weight:600;color:var(--text);font-size:.95rem;">{{ match.metrics.spread }}</div>
+      {% if target_metrics.spread %}<div style="font-size:.68rem;color:var(--muted);">Now: {{ target_metrics.spread }}</div>{% endif %}
+    </div>
+    {% endif %}
+    {% if match.metrics.carcass_weight %}
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.5rem .7rem;">
+      <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">Carcass Weight</div>
+      <div style="font-weight:600;color:var(--text);font-size:.95rem;">{{ match.metrics.carcass_weight }}</div>
+      {% if target_metrics.carcass_weight %}<div style="font-size:.68rem;color:var(--muted);">Now: {{ target_metrics.carcass_weight }}</div>{% endif %}
+    </div>
+    {% endif %}
+    {% if match.metrics.cash_price %}
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:.5rem .7rem;">
+      <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">Cash Price</div>
+      <div style="font-weight:600;color:var(--text);font-size:.95rem;">{{ match.metrics.cash_price }}</div>
+      {% if target_metrics.cash_price %}<div style="font-size:.68rem;color:var(--muted);">Now: {{ target_metrics.cash_price }}</div>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Outcome -->
+  <div style="border-left:3px solid var(--gold);padding-left:.85rem;margin-top:.5rem;">
+    <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--gold);font-weight:700;margin-bottom:.3rem;">
+      What happened next (4 weeks after)
+    </div>
+    <div style="font-size:.85rem;color:var(--text);line-height:1.7;">
+      {{ match.outcome.summary }}
+    </div>
+    {% if match.outcome.cutout_change is not None %}
+    <div style="display:flex;gap:1rem;margin-top:.4rem;flex-wrap:wrap;">
+      <span style="font-size:.75rem;font-weight:600;
+        color:{% if match.outcome.cutout_change > 0 %}var(--green){% else %}var(--red){% endif %};">
+        Cutout: {{ match.outcome.cutout_change|floatformat:1 }}%
+      </span>
+      {% if match.outcome.cash_change is not None %}
+      <span style="font-size:.75rem;font-weight:600;
+        color:{% if match.outcome.cash_change > 0 %}var(--green){% else %}var(--red){% endif %};">
+        Cash: {{ match.outcome.cash_change|floatformat:1 }}%
+      </span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="alert alert-info">No comparable weeks found. This may happen if the selected week is at the edge of the dataset.</div>
+{% endif %}
+
+<!-- DATA NOTE -->
+<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.85rem 1rem;margin-top:1rem;">
+  <div style="font-size:.72rem;color:var(--sub);line-height:1.7;">
+    <strong style="color:var(--text);">How this works:</strong> {% if species == "hogs" %}The algorithm matches the current week against 600+ historical hog market weeks going back to 2013 using pork carcass value (25%), hog carcass weight (20%), pork belly value (15%), cash hog price (10%), and week of year (30%).{% else %}The algorithm matches the current week against 1,100+ historical weeks going back to 2004 using Choice cutout level (25%), carcass weight (20%), Choice/Select spread (15%), cash price (10%), and week of year (30%).{% endif %} Similarity score reflects closeness across all metrics. Outcome data shows actual market movement in the 4 weeks following each analog.
+  </div>
+</div>
+
+<p class="page-footer">AgriPulse · USDA Data going back to 2004 · Track 1</p>
+{% endblock %}

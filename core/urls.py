@@ -9,6 +9,7 @@ urlpatterns = [
     path('lrp/', views.lrp, name='lrp'),
     path('wasde/', views.wasde, name='wasde'),
     path('chatbot/', views.chatbot_page, name='chatbot'),
+    path('compare/', views.comparable, name='comparable'),
     # API
     path('api/chat/', views.api_chat, name='api_chat'),
     path('api/insight/<str:module>/', views.api_module_insight, name='api_module_insight'),

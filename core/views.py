@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST, require_GET
 from core.services import data_loader as dl
 from core.services import chart_builder as cb
 from core.services import ai_engine as ai
+from core.services import comparable_weeks as cw_service
 
 
 # ── HELPERS ────────────────────────────────────────────────────────────────────
@@ -115,11 +116,7 @@ def dashboard(request):
         charts = {}
 
     try:
-        cross_signal = ai.generate_cross_signal_insight({
-            'slaughter': kpi_slaughter,
-            'cutout': kpi_cutout,
-            'cash': kpi_cash,
-        })
+        cross_signal = ai.generate_cross_signal_insight({})
     except Exception:
         cross_signal = 'Select a module below to begin your market analysis.'
 
@@ -200,6 +197,184 @@ def _compute_dashboard_kpis(slaughter_rows, cutout_rows, cash_rows):
     return kpis
 
 
+def _compute_slaughter_kpis(slaughter_rows, carcass_rows):
+    """WoW KPIs for slaughter module."""
+    kpis = {}
+    try:
+        by_commodity = {}
+        for row in slaughter_rows:
+            by_commodity.setdefault(row['commodity'], []).append(row['total'])
+        for commodity in ['Cattle', 'Hogs']:
+            if commodity in by_commodity and len(by_commodity[commodity]) >= 2:
+                curr, prev = by_commodity[commodity][0], by_commodity[commodity][1]
+                wow = (curr - prev) / prev * 100 if prev > 0 else 0
+                key = commodity.lower()
+                kpis[key] = {
+                    'value': f"{curr:,.0f}",
+                    'delta': f"{wow:+.1f}%",
+                    'signal': 'bear' if wow > 2 else ('bull' if wow < -2 else 'neut'),
+                    'note': 'head WoW',
+                }
+    except Exception:
+        pass
+    try:
+        if len(carcass_rows) >= 2:
+            curr = carcass_rows[0]['avg_carcass_weight']
+            prev = carcass_rows[1]['avg_carcass_weight']
+            if curr and prev:
+                delta = curr - prev
+                kpis['carcass'] = {
+                    'value': f"{curr:.1f} lbs",
+                    'delta': f"{delta:+.1f} lbs",
+                    'signal': 'bear' if delta > 2 else ('bull' if delta < -2 else 'neut'),
+                    'note': 'avg carcass weight WoW',
+                }
+    except Exception:
+        pass
+    return kpis
+
+
+def _compute_cutout_kpis(cutout_rows, primal_rows):
+    """WoW KPIs for cutout module."""
+    kpis = {}
+    try:
+        by_attr = {}
+        for row in cutout_rows:
+            by_attr.setdefault(row['attribute'], []).append(row['value'])
+        for attr in ['Choice', 'Select']:
+            if attr in by_attr and len(by_attr[attr]) >= 2:
+                curr, prev = by_attr[attr][0], by_attr[attr][1]
+                delta = curr - prev
+                kpis[attr.lower()] = {
+                    'value': f"${curr:.2f}",
+                    'delta': f"{delta:+.2f}",
+                    'signal': 'bull' if delta > 0 else ('bear' if delta < 0 else 'neut'),
+                    'note': '$/cwt WoW',
+                }
+        if 'Choice' in by_attr and 'Select' in by_attr:
+            spread = by_attr['Choice'][0] - by_attr['Select'][0]
+            prev_spread = (by_attr['Choice'][1] - by_attr['Select'][1]) if len(by_attr['Choice']) > 1 else spread
+            delta = spread - prev_spread
+            kpis['spread'] = {
+                'value': f"${spread:.2f}",
+                'delta': f"{delta:+.2f} {'widening' if delta > 0 else 'narrowing'}",
+                'signal': 'bull' if delta > 0 else ('bear' if delta < 0 else 'neut'),
+                'note': 'Choice/Select spread',
+            }
+    except Exception:
+        pass
+    try:
+        if not primal_rows.empty:
+            top = primal_rows.iloc[0]
+            bot = primal_rows.iloc[-1]
+            kpis['top_primal'] = {
+                'value': top['primal_desc'],
+                'delta': f"+{top['delta']:.2f}",
+                'signal': 'bull',
+                'note': 'top gaining primal',
+            }
+            kpis['bot_primal'] = {
+                'value': bot['primal_desc'],
+                'delta': f"{bot['delta']:.2f}",
+                'signal': 'bear',
+                'note': 'top losing primal',
+            }
+    except Exception:
+        pass
+    return kpis
+
+
+def _compute_basis_kpis(cash_rows, futures_rows):
+    """WoW KPIs for cash/futures module."""
+    kpis = {}
+    try:
+        if len(cash_rows) >= 2:
+            curr = cash_rows[0]['weighted_avg_price']
+            prev = cash_rows[1]['weighted_avg_price']
+            delta = curr - prev
+            kpis['cash'] = {
+                'value': f"${curr:.2f}",
+                'delta': f"{delta:+.2f}",
+                'signal': 'bull' if delta > 0 else ('bear' if delta < 0 else 'neut'),
+                'note': '$/cwt live WoW',
+            }
+    except Exception:
+        pass
+    try:
+        if len(futures_rows) >= 2:
+            curr = futures_rows[0]['close']
+            prev = futures_rows[1]['close']
+            delta = curr - prev
+            kpis['futures'] = {
+                'value': f"${curr:.2f}",
+                'delta': f"{delta:+.2f}",
+                'signal': 'bull' if delta > 0 else ('bear' if delta < 0 else 'neut'),
+                'note': 'LE nearby futures WoW',
+            }
+        if len(cash_rows) >= 1 and len(futures_rows) >= 1:
+            basis = cash_rows[0]['weighted_avg_price'] - futures_rows[0]['close']
+            kpis['basis'] = {
+                'value': f"${basis:.2f}",
+                'delta': 'cash above futures' if basis > 0 else 'cash below futures',
+                'signal': 'bull' if basis > 0 else 'bear',
+                'note': 'current basis',
+            }
+    except Exception:
+        pass
+    return kpis
+
+
+def _compute_lrp_kpis(lrp_rows):
+    """KPIs for LRP module."""
+    kpis = {}
+    try:
+        if lrp_rows:
+            row = lrp_rows[0]
+            kpis['futures'] = {
+                'value': f"${row['futures_price']:.2f}",
+                'delta': 'current futures price',
+                'signal': 'neut',
+                'note': 'Live Cattle futures',
+            }
+            kpis['coverage'] = {
+                'value': f"${row['coverage_price']:.2f}",
+                'delta': f"{row['coverage_level_percent']*100:.0f}% coverage level",
+                'signal': 'bull',
+                'note': 'LRP floor at 95%',
+            }
+            kpis['premium'] = {
+                'value': f"${row['per_head_premium']:.2f}",
+                'delta': f"{row['subsidy_percent']*100:.0f}% USDA subsidized",
+                'signal': 'neut',
+                'note': 'producer premium/head',
+            }
+    except Exception:
+        pass
+    return kpis
+
+
+def _compute_wasde_kpis(wasde_rows):
+    """KPIs for WASDE module."""
+    kpis = {}
+    try:
+        by_commodity = {}
+        for row in wasde_rows:
+            by_commodity.setdefault(row['commodity'], []).append(row['value'])
+        for commodity in ['Beef', 'Pork']:
+            if commodity in by_commodity and len(by_commodity[commodity]) >= 2:
+                curr, prev = by_commodity[commodity][0], by_commodity[commodity][1]
+                delta = curr - prev
+                kpis[commodity.lower()] = {
+                    'value': f"{curr:,.0f}M lbs",
+                    'delta': f"{delta:+,.0f} vs prior report",
+                    'signal': 'bear' if delta > 0 else ('bull' if delta < 0 else 'neut'),
+                    'note': f'{commodity} production forecast',
+                }
+    except Exception:
+        pass
+    return kpis
+
+
 # ── SLAUGHTER ──────────────────────────────────────────────────────────────────
 
 def slaughter(request):
@@ -207,7 +382,26 @@ def slaughter(request):
     carcass_df = dl.get_carcass_weights()
     cow_df = dl.get_cow_harvest()
     summary = _rich_slaughter_summary(slaughter_df, carcass_df)
-    insight = ai.generate_module_insight('slaughter', summary)
+    # Separate cattle and hog insights
+    cattle_summary = {k: v for k, v in summary.items() if True}
+    hog_summary = summary
+    insight_cattle = ai.generate_module_insight('slaughter_cattle', {
+        'species': 'Cattle',
+        'data': [r for r in summary.get('slaughter', []) if r.get('commodity') == 'Cattle'],
+        'carcass': summary.get('carcass_weights', []),
+    })
+    insight_hogs = ai.generate_module_insight('slaughter_hogs', {
+        'species': 'Hogs',
+        'data': [r for r in summary.get('slaughter', []) if r.get('commodity') == 'Hogs'],
+    })
+    insight = insight_cattle  # default for combined
+    # KPI cards
+    try:
+        kpi_rows = dl.get_slaughter_kpis().to_dict(orient='records')
+        carcass_rows = dl.get_carcass_kpis().to_dict(orient='records')
+        kpis = _compute_slaughter_kpis(kpi_rows, carcass_rows)
+    except Exception:
+        kpis = {}
 
     charts = {
         'slaughter_seasonal_cattle':  _safe_chart(cb.chart_slaughter_seasonal, slaughter_df, 'Cattle'),
@@ -225,6 +419,9 @@ def slaughter(request):
     return render(request, 'slaughter.html', {
         'charts': {k: v for k, v in charts.items()},
         'insight': insight,
+        'insight_cattle': insight_cattle,
+        'insight_hogs': insight_hogs,
+        'kpis': kpis,
         'module': 'slaughter',
     })
 
@@ -237,6 +434,12 @@ def cutout(request):
     pork_df_raw = dl.get_pork_primals()
     summary = _rich_cutout_summary(cutout_df, primal_df, pork_df_raw)
     insight = ai.generate_module_insight('cutout', summary)
+    try:
+        cutout_rows = dl.get_cutout_kpis().to_dict(orient='records')
+        primal_rows = dl.get_primal_kpis()
+        kpis = _compute_cutout_kpis(cutout_rows, primal_rows)
+    except Exception:
+        kpis = {}
 
     charts = {
         'cutout_seasonal':      _safe_chart(cb.chart_cutout_seasonal, cutout_df),
@@ -250,6 +453,7 @@ def cutout(request):
     return render(request, 'cutout.html', {
         'charts': {k: v for k, v in charts.items()},
         'insight': insight,
+        'kpis': kpis,
         'module': 'cutout',
     })
 
@@ -261,6 +465,14 @@ def cash_futures(request):
     futures_df = dl.get_futures_endpoint_all()
     summary = _rich_basis_summary(cash_df, futures_df)
     insight = ai.generate_module_insight('cash_futures', summary)
+    try:
+        cash_rows, futures_rows = dl.get_basis_kpis()
+        kpis = _compute_basis_kpis(
+            cash_rows.to_dict(orient='records'),
+            futures_rows.to_dict(orient='records')
+        )
+    except Exception:
+        kpis = {}
 
     charts = {
         'cash_vs_futures': _safe_chart(cb.chart_cash_vs_futures, cash_df, futures_df),
@@ -272,6 +484,7 @@ def cash_futures(request):
     return render(request, 'cash_futures.html', {
         'charts': {k: v for k, v in charts.items()},
         'insight': insight,
+        'kpis': kpis,
         'module': 'cash_futures',
     })
 
@@ -283,6 +496,11 @@ def lrp(request):
     lrp_df = dl.get_lrp_all()
     summary = lrp_df[['commodity','coverage_level_percent','coverage_price','per_head_premium','futures_price','endorsement_length','subsidy_percent']].dropna().to_dict(orient='records')
     insight = ai.generate_module_insight('lrp', summary)
+    try:
+        lrp_rows = dl.get_lrp_kpis().to_dict(orient='records')
+        kpis = _compute_lrp_kpis(lrp_rows)
+    except Exception:
+        kpis = {}
 
     charts = {
         'lrp_coverage_vs_futures': _safe_chart(cb.chart_lrp_coverage_vs_futures, lrp_df, commodity),
@@ -293,6 +511,7 @@ def lrp(request):
     return render(request, 'lrp.html', {
         'charts': {k: v for k, v in charts.items()},
         'insight': insight,
+        'kpis': kpis,
         'commodity': commodity,
         'commodities': ['LIVE CATTLE', 'FDR CATTLE', 'CME LEAN HOGS'],
         'module': 'lrp',
@@ -305,6 +524,11 @@ def wasde(request):
     wasde_df = dl.get_wasde_all()
     summary = _rich_wasde_summary(wasde_df)
     insight = ai.generate_module_insight('wasde', summary)
+    try:
+        wasde_rows = dl.get_wasde_kpis().to_dict(orient='records')
+        kpis = _compute_wasde_kpis(wasde_rows)
+    except Exception:
+        kpis = {}
 
     charts = {
         'wasde_production_beef': _safe_chart(cb.chart_wasde_production, wasde_df, 'Beef'),
@@ -316,9 +540,61 @@ def wasde(request):
     return render(request, 'wasde.html', {
         'charts': {k: v for k, v in charts.items()},
         'insight': insight,
+        'kpis': kpis,
         'module': 'wasde',
     })
 
+
+
+# ── COMPARABLE WEEK FINDER ─────────────────────────────────────────────────────
+
+def comparable(request):
+    target_week = request.GET.get('week', None)
+    species = request.GET.get('species', 'cattle')
+    matches = []
+    target_metrics = {}
+    ai_insight = ''
+    error = ''
+
+    try:
+        if species == 'hogs':
+            matrix = dl.get_hog_comparable_matrix()
+            matrix['week'] = pd.to_datetime(matrix['week'])
+            target_metrics = cw_service.get_hog_target_metrics(matrix, target_week)
+            matches = cw_service.find_comparable_weeks_hogs(target_week, n=3)
+            available_weeks = matrix.sort_values('week', ascending=False)['week'].dt.strftime('%Y-%m-%d').tolist()
+        else:
+            matrix = dl.get_comparable_week_matrix()
+            matrix['week'] = pd.to_datetime(matrix['week'])
+            latest = matrix.sort_values('week').iloc[-1]
+            target_metrics = {
+                'week': latest['week'].strftime('%b %d, %Y') if target_week is None else target_week,
+                'choice_cutout': f"${latest['choice_cutout']:.2f}" if pd.notna(latest.get('choice_cutout')) else 'N/A',
+                'select_cutout': f"${latest['select_cutout']:.2f}" if pd.notna(latest.get('select_cutout')) else 'N/A',
+                'spread': f"${latest['spread']:.2f}" if pd.notna(latest.get('spread')) else 'N/A',
+                'carcass_weight': f"{latest['carcass_weight']:.1f} lbs" if pd.notna(latest.get('carcass_weight')) else 'N/A',
+                'cash_price': f"${latest['cash_price']:.2f}" if pd.notna(latest.get('cash_price')) else 'N/A',
+                'week_of_year': int(latest['week_of_year']),
+            }
+            matches = cw_service.find_comparable_weeks(target_week, n=3)
+            available_weeks = matrix.sort_values('week', ascending=False)['week'].dt.strftime('%Y-%m-%d').tolist()
+
+        if matches:
+            ai_insight = cw_service.get_ai_comparable_insight(target_metrics, matches)
+    except Exception as e:
+        error = str(e)
+        available_weeks = []
+
+    return render(request, 'comparable.html', {
+        'matches': matches,
+        'target_metrics': target_metrics,
+        'ai_insight': ai_insight,
+        'available_weeks': available_weeks[:52],
+        'selected_week': target_week or '',
+        'species': species,
+        'error': error,
+        'module': 'comparable',
+    })
 
 # ── CHATBOT ────────────────────────────────────────────────────────────────────
 
