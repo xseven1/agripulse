@@ -88,7 +88,8 @@ OPENROUTER_MODEL = 'openai/gpt-oss-120b:free'  # swap to gpt-oss-120b once confi
 # Cache — per-module AI insights cached for 1 day
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'agripulse_cache',
         'TIMEOUT': 86400,  # 24 hours
     }
 }

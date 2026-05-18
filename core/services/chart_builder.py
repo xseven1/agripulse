@@ -4,19 +4,19 @@ import numpy as np
 import plotly.graph_objects as go
 
 # ── THEME ──────────────────────────────────────────────────────────────────────
-GOLD    = '#F0C040'
-GREEN   = '#4CDB8A'
-RED     = '#FF5C5C'
-BLUE    = '#5AB4FF'
-PURPLE  = '#C084FF'
-ORANGE  = '#FF9A4D'
-TEAL    = '#3DD6C0'
-MUTED   = '#4A5570'
-SUB     = '#A0AEC0'
-WHITE   = '#FFFFFF'
-PLOT_BG = '#111827'
-GRID    = '#1E2A40'
-BAND    = 'rgba(160,174,192,0.10)'
+GOLD    = '#B8730A'
+GREEN   = '#1A6E3C'
+RED     = '#C0392B'
+BLUE    = '#1A5C9E'
+PURPLE  = '#7B3FA0'
+ORANGE  = '#C0650A'
+TEAL    = '#0E7C6E'
+MUTED   = '#9BA3B8'
+SUB     = '#5A6077'
+WHITE   = '#1A1D2E'
+PLOT_BG = '#FFFFFF'
+GRID    = '#EEF0F5'
+BAND    = 'rgba(184,115,10,0.10)'
 CARD_BG = 'rgba(0,0,0,0)'
 
 PRIMAL_COLORS = [GOLD, BLUE, GREEN, RED, PURPLE, ORANGE, TEAL, '#FF70B0']
