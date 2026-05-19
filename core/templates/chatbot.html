@@ -4,45 +4,131 @@
 {% block content %}
 <div class="page-header">
   <h1>AgriPulse AI Assistant</h1>
-  <p>Ask anything about market data, charts, or advisor recommendations across all modules</p>
+  <p>Ask anything about livestock markets, hedging strategy, or producer recommendations</p>
 </div>
 
 <div class="chat-container">
+
+  <!-- MODULE SELECTOR -->
   <div class="chat-module-selector">
-    <span class="filter-label">Context:</span>
-    <button class="filter-btn active" data-module="general">General</button>
-    <button class="filter-btn" data-module="slaughter">Slaughter</button>
-    <button class="filter-btn" data-module="cutout">Cutout</button>
-    <button class="filter-btn" data-module="cash_futures">Cash/Futures</button>
-    <button class="filter-btn" data-module="lrp">LRP</button>
-    <button class="filter-btn" data-module="wasde">WASDE</button>
+    <span class="filter-label">Market context:</span>
+    <button class="filter-btn active" data-module="slaughter" onclick="selectModule('slaughter', this)">🐄 Slaughter</button>
+    <button class="filter-btn" data-module="cutout" onclick="selectModule('cutout', this)">🥩 Cutout</button>
+    <button class="filter-btn" data-module="cash_futures" onclick="selectModule('cash_futures', this)">📈 Cash/Futures</button>
+    <button class="filter-btn" data-module="lrp" onclick="selectModule('lrp', this)">🛡 LRP</button>
+    <button class="filter-btn" data-module="wasde" onclick="selectModule('wasde', this)">📋 WASDE</button>
+    <button class="filter-btn" data-module="comparable" onclick="selectModule('comparable', this)">🔍 Analogs</button>
   </div>
 
+  <!-- EXAMPLE QUERIES -->
+  <div id="example-queries" class="example-queries-bar">
+    <span class="filter-label" style="white-space:nowrap;">Try asking:</span>
+    <div id="query-chips" class="query-chips"></div>
+  </div>
+
+  <!-- CHAT MESSAGES -->
   <div class="chat-messages" id="chat-messages">
     <div class="chat-msg chat-msg--ai">
       <div class="msg-label">AgriPulse AI</div>
-      <div class="msg-body">Hello. I'm your agricultural market analyst. Ask me about slaughter pace, cutout values, basis spreads, LRP insurance, WASDE projections, or anything across modules. Select a context above to load module-specific data.</div>
+      <div class="msg-body">Hello. I'm your AgriPulse market analyst. Select a market context above, then ask me anything — market direction, hedging strategy, what specific data means, or producer recommendations. Click any example query to get started.</div>
     </div>
   </div>
 
+  <!-- INPUT -->
   <div class="chat-input-row">
     <input type="text" id="chat-input" class="chat-input"
-           placeholder="e.g. Is the basis historically wide right now?"/>
+           placeholder="Ask about market conditions, hedging, LRP, producer strategy..."/>
     <button id="chat-send" class="btn-send">Send</button>
   </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script src="{% static 'js/chatbot.js' %}"></script>
 <script>
+const EXAMPLE_QUERIES = {
+  slaughter: [
+    "Is cattle slaughter running above or below normal for this time of year?",
+    "What does elevated cow slaughter tell us about herd liquidation?",
+    "Are heavier carcass weights bullish or bearish for beef prices?",
+    "How does current hog slaughter pace compare to year-ago?",
+    "What does a 3% increase in weekly cattle slaughter imply for packers?",
+  ],
+  cutout: [
+    "Is the Choice/Select spread historically wide or tight right now?",
+    "Which primals are leading the cutout move this week?",
+    "What does a narrowing Choice/Select spread signal about demand quality?",
+    "Is current Choice cutout above or below the 5-year seasonal average?",
+    "What should advisors tell producers when cutout is falling but slaughter is rising?",
+  ],
+  cash_futures: [
+    "Is the current basis historically wide or tight for this time of year?",
+    "What does a strong basis imply for producer hedging decisions?",
+    "Is the Live Cattle futures curve in contango or backwardation right now?",
+    "Should my producer be forward pricing cattle at current futures levels?",
+    "What basis level historically signals a good time to place futures hedges?",
+  ],
+  lrp: [
+    "At current premiums, does LRP make sense over a straight futures hedge?",
+    "What coverage level offers the best cost-of-protection tradeoff right now?",
+    "How much is USDA subsidizing LRP premiums at 95% coverage?",
+    "When is LRP preferable to selling futures for a 500-head cattle operation?",
+    "What are the key differences between LRP and a put option?",
+  ],
+  wasde: [
+    "What was the most market-moving WASDE revision this cycle?",
+    "Is USDA revising beef production up or down — and what does that mean for prices?",
+    "How do WASDE beef production forecasts compare to current cash market levels?",
+    "What does a downward revision in beef production imply for cattle prices?",
+    "How should advisors interpret conflicting WASDE supply and demand revisions?",
+  ],
+  comparable: [
+    "What happened to cattle prices in the most similar historical weeks?",
+    "Are the historical analogs consistent or conflicting in their price outcomes?",
+    "What does the analog analysis suggest for the next 4 weeks?",
+    "How reliable are historical analogs as a price forecasting tool?",
+    "What market conditions would make the current analog less predictive?",
+  ],
+};
+
+function selectModule(module, btn) {
+  document.querySelectorAll('.filter-btn[data-module]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentModule = module;
+  updateExampleQueries(module);
+  fetchModuleContext(module).then(ctx => { currentContext = ctx; });
+}
+
+function updateExampleQueries(module) {
+  const chips = document.getElementById('query-chips');
+  chips.innerHTML = '';
+  (EXAMPLE_QUERIES[module] || []).forEach(q => {
+    const chip = document.createElement('button');
+    chip.className = 'query-chip';
+    chip.textContent = q;
+    chip.onclick = () => {
+      document.getElementById('chat-input').value = q;
+      document.getElementById('chat-input').focus();
+    };
+    chips.appendChild(chip);
+  });
+}
+
+// Init with slaughter
+updateExampleQueries('slaughter');
+fetchModuleContext('slaughter').then(ctx => { currentContext = ctx; });
+
+// Pre-select from URL param
 (async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const moduleParam = urlParams.get('module');
-  if (moduleParam) {
+  if (moduleParam && EXAMPLE_QUERIES[moduleParam]) {
     document.querySelectorAll('.filter-btn[data-module]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.module === moduleParam);
+      const isMatch = btn.dataset.module === moduleParam;
+      btn.classList.toggle('active', isMatch);
     });
     currentModule = moduleParam;
+    updateExampleQueries(moduleParam);
     currentContext = await fetchModuleContext(moduleParam);
   }
 })();
