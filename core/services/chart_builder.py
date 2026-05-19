@@ -482,17 +482,17 @@ def chart_pork_primals(pork_df, height=310):
     pork_df['report_date'] = pd.to_datetime(pork_df['report_date'], errors='coerce')
     pork_df['week_start'] = pork_df['report_date'] - pd.to_timedelta(pork_df['report_date'].dt.weekday, unit='D')
     pork_df['Year'] = pork_df['week_start'].dt.year
-    pork_df = pork_df[~pork_df['Commodity'].isin(['Total Loads', 'Carcass', 'Trim'])].dropna(subset=['Value'])
-    w = pork_df.groupby(['Commodity', 'week_start', 'Year'])['Value'].mean().reset_index()
+    pork_df = pork_df[~pork_df['commodity'].isin(['Total Loads', 'Carcass', 'Trim'])].dropna(subset=['value'])
+    w = pork_df.groupby(['commodity', 'week_start', 'Year'])['value'].mean().reset_index()
     w['doy'] = w['week_start'].dt.dayofyear
     curr_yr = w['Year'].max()
 
     fig = go.Figure()
-    for i, p in enumerate(sorted(w[w['Year'] == curr_yr]['Commodity'].unique())):
-        sub = w[(w['Commodity'] == p) & (w['Year'] == curr_yr)].sort_values('week_start')
-        sub = _drop_partial(sub, 'Value')
+    for i, p in enumerate(sorted(w[w['Year'] == curr_yr]['commodity'].unique())):
+        sub = w[(w['commodity'] == p) & (w['Year'] == curr_yr)].sort_values('week_start')
+        sub = _drop_partial(sub, 'value')
         fig.add_trace(go.Scatter(
-            x=sub['doy'], y=sub['Value'],
+            x=sub['doy'], y=sub['value'],
             mode='lines', name=p,
             line=dict(color=PRIMAL_COLORS[i % len(PRIMAL_COLORS)], width=1.8),
             connectgaps=False,
@@ -1314,7 +1314,7 @@ def chart_dash_pork_regional(df, height=260):
             continue
         fig.add_trace(go.Scatter(
             x=sub['report_date'], y=sub['wtd_avg'],
-            mode='lines', 
+            mode='lines',
             name=label_map.get(region, region),
             line=dict(color=color, width=2),
             connectgaps=False,
@@ -1407,13 +1407,9 @@ def chart_hog_carcass_weights(harvest_usda_df, height=340):
         avg='mean',
     ).reset_index()
 
-    # Aggregate to weekly to avoid daily noise
-    curr['week'] = curr['report_date'].dt.to_period('W').apply(lambda r: r.start_time)
-    curr = curr.groupby('week')['avg_carcass_weight'].mean().reset_index()
-    curr.columns = ['report_date', 'avg_carcass_weight']
-    curr['report_date'] = pd.to_datetime(curr['report_date'])
     curr['week_of_year'] = curr['report_date'].dt.isocalendar().week.astype(int)
     curr_band = curr.merge(band, on='week_of_year', how='left')
+    curr_band = _drop_partial(curr_band, 'avg_carcass_weight')
 
     fig = go.Figure()
     # Band
@@ -1461,21 +1457,166 @@ def chart_implied_pork_production(slaughter_df, harvest_usda_df, height=320):
     merged = pd.merge(sl_w, hu_w, on='week', how='inner')
     merged['implied_lbs'] = merged['slaughter'] * merged['avg_carcass_weight']
     merged = merged.sort_values('week')
-    # merged = _drop_partial(merged, 'implied_lbs')
+    merged = _drop_partial(merged, 'implied_lbs')
 
     # Rolling 4-week avg
     merged['roll'] = merged['implied_lbs'].rolling(4, min_periods=1).mean()
 
     fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=merged['week'], y=merged['implied_lbs'],
+        name='Weekly Production',
+        marker_color=BLUE, marker_line_width=0,
+        hovertemplate='%{x|%b %d}: %{y:,.0f} lbs<extra></extra>',
+    ))
     fig.add_trace(go.Scatter(
-            x=merged['week'], y=merged['implied_lbs'],
-            mode='lines+markers', name='Weekly Production',
-            line=dict(color=BLUE, width=2.5),
-            marker=dict(size=4),
-            connectgaps=False,
-            hovertemplate='%{x|%b %d}: %{y:,.1f}M lbs<extra></extra>',
-        ))
+        x=merged['week'], y=merged['roll'],
+        mode='lines', name='4-wk Avg',
+        line=dict(color=GOLD, width=2),
+        connectgaps=False,
+        hovertemplate='%{y:,.0f} lbs<extra>4-wk avg</extra>',
+    ))
     fig.update_layout(**_L(height=height))
     fig.update_xaxes(tickformat="%b '%y")
     fig.update_yaxes(tickformat=',.0f', title_text='Lbs')
+    return to_json(fig)
+
+
+def chart_hog_class_breakdown(slaughter_df, sow_df, height=310):
+    """Sows vs market hogs (Barrows & Gilts) slaughter — breeding herd signal."""
+    # Get total hog slaughter
+    sl = slaughter_df.copy()
+    sl['slaughter_date'] = pd.to_datetime(sl['slaughter_date'], errors='coerce')
+    sl = sl[sl['commodity'].isin(['Hogs', 'Slaughter Hogs']) & (sl['period'] == 'Current')]
+    sl['week'] = sl['slaughter_date'].dt.to_period('W').apply(lambda r: r.start_time)
+    total = sl.groupby('week')['slaughter'].sum().reset_index()
+    total.columns = ['week', 'total']
+
+    # Get sow slaughter
+    sw = sow_df.copy()
+    sw['report_date'] = pd.to_datetime(sw['report_date'], errors='coerce')
+    sw['week'] = sw['report_date'].dt.to_period('W').apply(lambda r: r.start_time)
+    sows = sw.groupby('week')['volume'].sum().reset_index()
+    sows.columns = ['week', 'sows']
+
+    # Merge and compute market hogs
+    merged = pd.merge(total, sows, on='week', how='inner')
+    merged['market_hogs'] = merged['total'] - merged['sows']
+    merged['week_dt'] = merged['week'].apply(lambda w: w.start_time if hasattr(w, 'start_time') else pd.Timestamp(str(w)))
+    merged = merged.sort_values('week_dt')
+    merged = merged[merged['market_hogs'] > 0]
+
+    curr_year = merged['week_dt'].dt.year.max()
+    curr = merged[merged['week_dt'].dt.year == curr_year].copy()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=curr['week_dt'], y=curr['market_hogs'],
+        mode='lines+markers', name='Barrows & Gilts (Market)',
+        line=dict(color=BLUE, width=2.5),
+        marker=dict(size=4),
+        connectgaps=False,
+        hovertemplate='%{x|%b %d}<br>%{y:,.0f} head<extra>Market Hogs</extra>',
+    ))
+    fig.add_trace(go.Scatter(
+        x=curr['week_dt'], y=curr['sows'],
+        mode='lines+markers', name='Sows (Breeding)',
+        line=dict(color=ORANGE, width=2.5),
+        marker=dict(size=4),
+        connectgaps=False,
+        hovertemplate='%{x|%b %d}<br>%{y:,.0f} head<extra>Sows</extra>',
+    ))
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(tickformat="%b '%y")
+    fig.update_yaxes(tickformat=',.0f', title_text='Head')
+    return to_json(fig)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CUTOUT MODULE — PORK CHARTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def chart_pork_belly_vs_carcass(pork_df, height=310):
+    """Pork belly vs carcass value — current year."""
+    pork_df = pork_df.copy()
+    pork_df['report_date'] = pd.to_datetime(pork_df['report_date'], errors='coerce')
+    pork_df['week_start'] = pork_df['report_date'] - pd.to_timedelta(pork_df['report_date'].dt.weekday, unit='D')
+    pork_df['Year'] = pork_df['week_start'].dt.year
+    curr_yr = pork_df['Year'].max()
+
+    fig = go.Figure()
+    for cut, color in [('Belly', GOLD), ('Carcass', BLUE)]:
+        sub = pork_df[(pork_df['commodity'] == cut) & (pork_df['Year'] == curr_yr)]
+        sub = sub.groupby('week_start')['value'].mean().reset_index().sort_values('week_start')
+        sub = _drop_partial(sub, 'value')
+        sub['doy'] = sub['week_start'].dt.dayofyear
+        fig.add_trace(go.Scatter(
+            x=sub['doy'], y=sub['value'],
+            mode='lines+markers', name=cut,
+            line=dict(color=color, width=2.5), marker=dict(size=4),
+            connectgaps=False,
+            hovertemplate=f'{cut}: $%{{y:.2f}}<extra></extra>',
+        ))
+    fig.update_layout(**_L(height=height, yprefix='$'))
+    fig.update_xaxes(**MON_TICKS)
+    return to_json(fig)
+
+
+def chart_pork_seasonal_cutout(pork_df, height=310):
+    """Seasonal pork cutout pattern — belly and carcass historical average."""
+    pork_df = pork_df.copy()
+    pork_df['report_date'] = pd.to_datetime(pork_df['report_date'], errors='coerce')
+    pork_df['week_start'] = pork_df['report_date'] - pd.to_timedelta(pork_df['report_date'].dt.weekday, unit='D')
+    pork_df['Year'] = pork_df['week_start'].dt.year
+    pork_df['iso_week'] = pork_df['week_start'].apply(lambda x: x.isocalendar().week)
+    curr_yr = pork_df['Year'].max()
+
+    fig = go.Figure()
+    for cut, color in [('Belly', GOLD), ('Carcass', BLUE)]:
+        sub = pork_df[pork_df['commodity'] == cut].copy()
+        curr = sub[sub['Year'] == curr_yr].groupby('iso_week')['value'].mean().reset_index()
+        hist_avg = sub[sub['Year'] < curr_yr].groupby('iso_week')['value'].mean().reset_index()
+        fig.add_trace(go.Scatter(
+            x=curr['iso_week'], y=curr['value'],
+            mode='lines+markers', name=f'{cut} {curr_yr}',
+            line=dict(color=color, width=2.5), marker=dict(size=4),
+            connectgaps=False,
+            hovertemplate=f'{cut}: $%{{y:.2f}}<extra></extra>',
+        ))
+        fig.add_trace(go.Scatter(
+            x=hist_avg['iso_week'], y=hist_avg['value'],
+            mode='lines', name=f'{cut} hist avg',
+            line=dict(color=color, width=1.2, dash='dot'),
+            connectgaps=False,
+            hovertemplate=f'{cut} avg: $%{{y:.2f}}<extra></extra>',
+        ))
+    fig.update_layout(**_L(height=height, yprefix='$'))
+    fig.update_xaxes(title_text='Week of Year', tickfont=dict(color=SUB, size=10))
+    return to_json(fig)
+
+
+def chart_pork_yoy_pct(pork_df, cut='Carcass', height=280):
+    """Pork cut % change vs year ago."""
+    pork_df = pork_df.copy()
+    pork_df['report_date'] = pd.to_datetime(pork_df['report_date'], errors='coerce')
+    pork_df['week_start'] = pork_df['report_date'] - pd.to_timedelta(pork_df['report_date'].dt.weekday, unit='D')
+    pork_df['Year'] = pork_df['week_start'].dt.year
+    pork_df['iso_week'] = pork_df['week_start'].apply(lambda x: x.isocalendar().week)
+
+    sub = pork_df[pork_df['commodity'] == cut].copy()
+    curr_yr = sub['Year'].max()
+    curr = sub[sub['Year'] == curr_yr].groupby('iso_week')['value'].mean().reset_index()
+    prev = sub[sub['Year'] == curr_yr - 1].groupby('iso_week')['value'].mean().reset_index()
+    merged = curr.merge(prev, on='iso_week', suffixes=('', '_prev')).dropna()
+    merged['pct'] = (merged['value'] - merged['value_prev']) / merged['value_prev'] * 100
+
+    fig = go.Figure(go.Bar(
+        x=merged['iso_week'], y=merged['pct'],
+        marker_color=[GREEN if v >= 0 else RED for v in merged['pct']],
+        marker_line_width=0,
+        hovertemplate=f'Week %{{x}}: %{{y:.1f}}%<extra>{cut}</extra>',
+    ))
+    fig.add_hline(y=0, line_color='rgba(100,100,100,0.3)', line_width=1)
+    fig.update_layout(**_L(height=height, ysuffix='%'))
+    fig.update_xaxes(title_text='Week of Year', color=SUB, title_font=dict(size=10))
     return to_json(fig)

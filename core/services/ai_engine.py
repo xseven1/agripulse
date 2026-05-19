@@ -115,7 +115,7 @@ def generate_module_insight(module, data_summary):
     if cached:
         return cached
     ctx = json.dumps({'module': module, 'as_of': str(date.today()), 'data': data_summary}, default=str)
-    prompt = f"{MODULE_PROMPTS.get(module, 'Analyze this agricultural market data.')} Give exactly 4 numbered points. One sentence each. No markdown. No dashes. Numbers only: 1. 2. 3. 4.\n\nData:\n{ctx}"
+    prompt = f"{MODULE_PROMPTS.get(module, 'Analyze this agricultural market data.')} Write 2-3 plain sentences as a short paragraph. No numbered points. No markdown. No dashes. Just plain prose.\n\nData:\n{ctx}"
     try:
         result = _call([
             {'role': 'system', 'content': SYSTEM_BASE},

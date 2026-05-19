@@ -48,17 +48,20 @@
     <div class="insight-text">{{ insight_hogs|linebreaksbr }}</div>
   </div>
 
+  
   <div class="section-label">Hog Supply — Current vs Year Ago</div>
   <div class="width-100%">
     {% with why="Is hog slaughter above or below last year?" title="Hog Slaughter — This Year vs Year Ago" desc="Side by side bars for each week. Blue = this year, gray = year ago. Easy to see which weeks ran hot or cold vs last year." chart_id="slaughter_seasonal_hogs" %}
     {% include '_chart_card.html' %}{% endwith %}
   </div>
 
-  <div class="section-label">Hog Carcass Weights</div>
-  <div class="width-100%">
-    {% with why="Are hog carcass weights rising or falling?" title="YTD Avg Hog Carcass Weight" desc="Heavier carcasses mean more total pork. Weight above the band signals animals are being held longer — more total supply." chart_id="hog_carcass_weights" %}
-    {% include '_chart_card.html' %}{% endwith %}
-  </div>
+<div class="section-label">Hog Supply & Carcass Weights</div>
+<div class="two-col">
+  {% with why="Are producers liquidating breeding sows?" title="Hog Slaughter — Sows vs Market Hogs" desc="Sows (orange) = breeding females being culled. Barrows & Gilts (blue) = market hogs. Rising sow slaughter signals herd liquidation — bearish long-term." chart_id="hog_class_breakdown" %}
+  {% include '_chart_card.html' %}{% endwith %}
+  {% with why="Are hog carcass weights rising or falling?" title="YTD Avg Hog Carcass Weight" desc="Heavier carcasses mean more total pork. Weight above the band signals animals are being held longer — more total supply." chart_id="hog_carcass_weights" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
 
   <div class="section-label">Implied Pork Production</div>
   <div class="width-100%">
@@ -74,7 +77,6 @@
 <script>
 const CHARTS = {{ charts|safe }};
 
-// Render all charts after DOM is fully ready
 window.addEventListener('load', () => {
   Object.keys(CHARTS).forEach(id => {
     renderChart(id, CHARTS[id]);

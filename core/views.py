@@ -242,7 +242,7 @@ def _compute_cutout_kpis(cutout_rows, primal_rows):
                     'value': f"${curr:.2f}",
                     'delta': f"{delta:+.2f}",
                     'signal': 'bull' if delta > 0 else ('bear' if delta < 0 else 'neut'),
-                    'note': '$/cwt WoW',
+                    'note': f'🐄 {attr} Cutout $/cwt',
                 }
         if 'Choice' in by_attr and 'Select' in by_attr:
             spread = by_attr['Choice'][0] - by_attr['Select'][0]
@@ -252,30 +252,67 @@ def _compute_cutout_kpis(cutout_rows, primal_rows):
                 'value': f"${spread:.2f}",
                 'delta': f"{delta:+.2f} {'widening' if delta > 0 else 'narrowing'}",
                 'signal': 'bull' if delta > 0 else ('bear' if delta < 0 else 'neut'),
-                'note': 'Choice/Select spread',
+                'note': '📊 Choice/Select Spread',
             }
     except Exception:
         pass
+
+    # Top gaining beef primal
     try:
         if not primal_rows.empty:
-            top = primal_rows.iloc[0]
-            bot = primal_rows.iloc[-1]
+            top = primal_rows.iloc[-1]  # sorted ascending so last = highest gain
             kpis['top_primal'] = {
                 'value': top['primal_desc'],
                 'delta': f"+{top['delta']:.2f}",
                 'signal': 'bull',
-                'note': 'top gaining primal',
-            }
-            kpis['bot_primal'] = {
-                'value': bot['primal_desc'],
-                'delta': f"{bot['delta']:.2f}",
-                'signal': 'bear',
-                'note': 'top losing primal',
+                'note': '🐄 Top Gaining Beef Cut',
             }
     except Exception:
         pass
-    return kpis
 
+    # Top gaining pork primal
+    try:
+        from core.services import data_loader as dl_inner
+        pork_df = dl_inner.get_pork_primals()
+        pork_df['report_date'] = pd.to_datetime(pork_df['report_date'])
+        latest = pork_df['report_date'].max()
+        prev_date = pork_df[pork_df['report_date'] < latest]['report_date'].max()
+        curr = pork_df[pork_df['report_date'] == latest].groupby('commodity')['value'].mean()
+        prev = pork_df[pork_df['report_date'] == prev_date].groupby('commodity')['value'].mean()
+        delta = (curr - prev).dropna().sort_values(ascending=False)
+        delta = delta[~delta.index.isin(['Total Loads', 'Trim'])]
+        if not delta.empty:
+            top_cut = delta.index[0]
+            top_val = delta.iloc[0]
+            kpis['top_pork'] = {
+                'value': top_cut,
+                'delta': f"{top_val:+.2f}",
+                'signal': 'bull' if top_val > 0 else 'bear',
+                'note': '🐷 Top Gaining Pork Cut',
+            }
+    except Exception:
+        pass
+
+    # Pork belly price
+    try:
+        from core.services import data_loader as dl_inner
+        pork_df = dl_inner.get_pork_primals()
+        pork_df['report_date'] = pd.to_datetime(pork_df['report_date'])
+        belly = pork_df[pork_df['commodity'] == 'Belly'].sort_values('report_date')
+        if len(belly) >= 2:
+            curr = belly.iloc[-1]['value']
+            prev = belly.iloc[-2]['value']
+            delta = curr - prev
+            kpis['belly'] = {
+                'value': f"${curr:.2f}",
+                'delta': f"{delta:+.2f}",
+                'signal': 'bull' if delta > 0 else ('bear' if delta < 0 else 'neut'),
+                'note': '🐷 Pork Belly $/cwt',
+            }
+    except Exception:
+        pass
+
+    return kpis
 
 def _compute_basis_kpis(cash_rows, futures_rows):
     """WoW KPIs for cash/futures module."""
@@ -375,10 +412,7 @@ def slaughter(request):
     carcass_df = dl.get_carcass_weights()
     cow_df = dl.get_cow_harvest()
     harvest_usda_df = dl.get_harvest_usda()
-    print('HARVEST USDA SHAPE:', harvest_usda_df.shape)
-    print('HARVEST USDA COLS:', harvest_usda_df.columns.tolist())
-    print('HARVEST USDA SAMPLE:', harvest_usda_df.head(2).to_dict())
-    print('HOG CARCASS CHART:', _safe_chart(cb.chart_hog_carcass_weights, harvest_usda_df)[:200])
+    sow_df = dl.get_sow_harvest()
     summary = _rich_slaughter_summary(slaughter_df, carcass_df)
     # Separate cattle and hog insights
     cattle_summary = {k: v for k, v in summary.items() if True}
@@ -413,6 +447,7 @@ def slaughter(request):
         'hog_slaughter_seasonal':     _safe_chart(cb.chart_hog_slaughter_seasonal, slaughter_df),
         'hog_carcass_weights':        _safe_chart(cb.chart_hog_carcass_weights, harvest_usda_df),
         'implied_pork_v2':            _safe_chart(cb.chart_implied_pork_production, slaughter_df, harvest_usda_df),
+        'hog_class_breakdown':        _safe_chart(cb.chart_hog_class_breakdown, slaughter_df, sow_df),
     }
     return render(request, 'slaughter.html', {
         'charts': {k: v for k, v in charts.items()},
@@ -430,6 +465,9 @@ def cutout(request):
     cutout_df = dl.get_cutout_all()
     primal_df = dl.get_cattle_primals()
     pork_df_raw = dl.get_pork_primals()
+    print('CUTOUT SHAPE:', cutout_df.shape)
+    print('CUTOUT ATTRS:', cutout_df['attribute'].unique() if 'attribute' in cutout_df.columns else 'NO COL')
+    print('CATTLE PRIMALS SHAPE:', primal_df.shape)
     summary = _rich_cutout_summary(cutout_df, primal_df, pork_df_raw)
     insight = ai.generate_module_insight('cutout', summary)
     try:
@@ -440,13 +478,17 @@ def cutout(request):
         kpis = {}
 
     charts = {
-        'cutout_seasonal':      _safe_chart(cb.chart_cutout_seasonal, cutout_df),
-        'choice_select_spread': _safe_chart(cb.chart_choice_select_spread, cutout_df),
-        'choice_yoy':           _safe_chart(cb.chart_cutout_yoy_pct, cutout_df, 'Choice'),
-        'select_yoy':           _safe_chart(cb.chart_cutout_yoy_pct, cutout_df, 'Select'),
-        'beef_primals':         _safe_chart(cb.chart_beef_primals, primal_df),
-        'pork_primals':         _safe_chart(cb.chart_pork_primals, pork_df_raw),
-        'seasonal_avg_cutout':  _safe_chart(cb.chart_seasonal_avg_cutout, cutout_df),
+        'cutout_seasonal':        _safe_chart(cb.chart_cutout_seasonal, cutout_df),
+        'choice_select_spread':   _safe_chart(cb.chart_choice_select_spread, cutout_df),
+        'choice_yoy':             _safe_chart(cb.chart_cutout_yoy_pct, cutout_df, 'Choice'),
+        'select_yoy':             _safe_chart(cb.chart_cutout_yoy_pct, cutout_df, 'Select'),
+        'beef_primals':           _safe_chart(cb.chart_beef_primals, primal_df),
+        'pork_primals':           _safe_chart(cb.chart_pork_primals, pork_df_raw),
+        'seasonal_avg_cutout':    _safe_chart(cb.chart_seasonal_avg_cutout, cutout_df),
+        'pork_belly_vs_carcass':  _safe_chart(cb.chart_pork_belly_vs_carcass, pork_df_raw),
+        'pork_seasonal_cutout':   _safe_chart(cb.chart_pork_seasonal_cutout, pork_df_raw),
+        'pork_carcass_yoy':       _safe_chart(cb.chart_pork_yoy_pct, pork_df_raw, 'Carcass'),
+        'pork_belly_yoy':         _safe_chart(cb.chart_pork_yoy_pct, pork_df_raw, 'Belly'),
     }
     return render(request, 'cutout.html', {
         'charts': {k: v for k, v in charts.items()},

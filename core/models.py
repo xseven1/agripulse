@@ -242,3 +242,13 @@ class FeedFutures(models.Model):
     class Meta:
         db_table = 'feed_futures'
         indexes = [models.Index(fields=['commodity', 'trade_date'])]
+
+
+class SowHarvest(models.Model):
+    report_date = models.DateField(null=True)
+    volume = models.FloatField(null=True)
+    year = models.IntegerField(null=True)
+
+    class Meta:
+        db_table = 'sow_harvest'
+        indexes = [models.Index(fields=['report_date'])]

@@ -49,6 +49,7 @@ class Command(BaseCommand):
         self.load_pork_primals()
         self.load_harvest_usda()
         self.load_feed_futures()
+        self.load_sow_harvest()
         self.stdout.write(self.style.SUCCESS('All data loaded successfully.'))
 
     def load_slaughter(self):
@@ -122,7 +123,7 @@ class Command(BaseCommand):
     def load_cutout(self):
         self.stdout.write('Loading cutout values...')
         CutoutValue.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Cutout_Select_Choice.csv')
+        df = pd.read_csv(DATA_DIR / 'Cutout (Select_Choice).csv')
         objs = [
             CutoutValue(
                 report_date=parse_date(row.get('report_date')),
@@ -402,3 +403,20 @@ class Command(BaseCommand):
 
         FeedFutures.objects.bulk_create(objs, batch_size=500)
         self.stdout.write(f'  Feed futures: {len(objs)} rows')
+
+    def load_sow_harvest(self):
+        from core.models import SowHarvest
+        self.stdout.write('Loading sow harvest...')
+        SowHarvest.objects.all().delete()
+        df = pd.read_csv(DATA_DIR / 'SOW Harvest.csv')
+        df['report_date'] = pd.to_datetime(df['report_date'], errors='coerce')
+        df = df.dropna(subset=['report_date', 'volume'])
+        objs = [
+            SowHarvest(
+                report_date=parse_date(row['report_date']),
+                volume=clean(row['volume']),
+                year=int(row['report_date'].year),
+            ) for _, row in df.iterrows()
+        ]
+        SowHarvest.objects.bulk_create(objs, batch_size=500)
+        self.stdout.write(f'  Sow harvest: {len(objs)} rows')
