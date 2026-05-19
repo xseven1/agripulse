@@ -55,7 +55,7 @@ class Command(BaseCommand):
         Slaughter.objects.all().delete()
 
         # Load Harvest_3
-        df = pd.read_csv(DATA_DIR / 'Harvest 3.csv')
+        df = pd.read_csv(DATA_DIR / 'Harvest_3.csv')
         df = df[df['period'] == 'Current']  # only current period rows
         objs = []
         for _, row in df.iterrows():
@@ -81,7 +81,7 @@ class Command(BaseCommand):
         Slaughter.objects.bulk_create(objs, batch_size=500)
 
         # Load Historical_Harvest to fill earlier years
-        df2 = pd.read_csv(DATA_DIR / 'Historical Harvest.csv')
+        df2 = pd.read_csv(DATA_DIR / 'Historical_Harvest.csv')
         objs2 = []
         for _, row in df2.iterrows():
             objs2.append(Slaughter(
@@ -102,7 +102,7 @@ class Command(BaseCommand):
     def load_carcass_weights(self):
         self.stdout.write('Loading carcass weights...')
         CarcassWeight.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Carcass Weights.csv')
+        df = pd.read_csv(DATA_DIR / 'Carcass_Weights.csv')
         objs = [
             CarcassWeight(
                 report_date=parse_date(row.get('report_date')),
@@ -121,7 +121,7 @@ class Command(BaseCommand):
     def load_cutout(self):
         self.stdout.write('Loading cutout values...')
         CutoutValue.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Cutout (Select_Choice).csv')
+        df = pd.read_csv(DATA_DIR / 'Cutout_Select_Choice.csv')
         objs = [
             CutoutValue(
                 report_date=parse_date(row.get('report_date')),
@@ -139,7 +139,7 @@ class Command(BaseCommand):
     def load_cattle_primal(self):
         self.stdout.write('Loading cattle primal values...')
         CattlePrimal.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Cattle Primal Values.csv')
+        df = pd.read_csv(DATA_DIR / 'Cattle_Primal_Values.csv')
         objs = [
             CattlePrimal(
                 report_date=parse_date(row.get('report_date')),
@@ -158,7 +158,7 @@ class Command(BaseCommand):
     def load_cash_cattle(self):
         self.stdout.write('Loading cash cattle...')
         CashCattle.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Cash Cattle.csv')
+        df = pd.read_csv(DATA_DIR / 'Cash_Cattle.csv')
         # Filter to most useful subset to keep table lean
         df = df[
             (df['selling_basis_description'] == 'LIVE DELIVERED') &
@@ -181,7 +181,7 @@ class Command(BaseCommand):
     def load_nearby_futures(self):
         self.stdout.write('Loading nearby futures...')
         NearbyFutures.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Nearby Futures.csv')
+        df = pd.read_csv(DATA_DIR / 'Nearby_Futures.csv')
         objs = [
             NearbyFutures(
                 report_date=parse_date(row.get('report_date')),
@@ -219,7 +219,7 @@ class Command(BaseCommand):
     def load_lrp_quotes(self):
         self.stdout.write('Loading LRP quotes...')
         LRPQuote.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'LRP Quotes.csv')
+        df = pd.read_csv(DATA_DIR / 'LRP_Quotes.csv')
         objs = [
             LRPQuote(
                 commodity=clean(row.get('Commodity')),
@@ -250,7 +250,7 @@ class Command(BaseCommand):
     def load_lrp_futures(self):
         self.stdout.write('Loading LRP futures...')
         LRPFutures.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'LRP Quotes Futures.csv')
+        df = pd.read_csv(DATA_DIR / 'LRP_Quotes_Futures.csv')
         objs = [
             LRPFutures(
                 previous=clean(row.get('Previous')),
@@ -331,7 +331,7 @@ class Command(BaseCommand):
         from core.models import HarvestUSDA
         self.stdout.write('Loading Harvest USDA...')
         HarvestUSDA.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Harvest - USDA.csv')
+        df = pd.read_csv(DATA_DIR / 'Harvest  USDA.csv')
         objs = [
             HarvestUSDA(
                 report_date=parse_date(row.get('report_date')),

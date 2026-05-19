@@ -43,3 +43,43 @@ function renderChart(id, dataJson) {
 function renderAllCharts(chartMap) {
   Object.entries(chartMap).forEach(([id, json]) => renderChart(id, json));
 }
+
+
+// ── PERIOD TOGGLE ──────────────────────────────────────────────────────────────
+
+const _chartPeriodCache = {};
+
+function initPeriodToggle(chartId, module) {
+  // Store module for API calls
+  _chartPeriodCache[chartId] = { module, current: 'year' };
+}
+
+async function switchPeriod(chartId, period, btn) {
+  // Update button states
+  const bar = btn.closest('.period-bar');
+  if (bar) bar.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const cache = _chartPeriodCache[chartId];
+  if (!cache) return;
+  if (cache.current === period) return;
+  cache.current = period;
+
+  const el = document.getElementById(chartId);
+  if (!el) return;
+
+  // Show loading state
+  el.style.opacity = '0.5';
+
+  try {
+    const res = await fetch(`/api/chart-period/${chartId}/?period=${period}&module=${cache.module}`);
+    const data = await res.json();
+    if (data.chart) {
+      renderChart(chartId, data.chart);
+    }
+  } catch (e) {
+    console.error('Period switch failed:', e);
+  } finally {
+    el.style.opacity = '1';
+  }
+}

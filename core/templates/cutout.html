@@ -52,5 +52,11 @@
 <script>
 const CHARTS = {{ charts|safe }};
 Object.keys(CHARTS).forEach(id => { renderChart(id, CHARTS[id]); initChartAI(id); });
+  initPeriodToggle('cutout_seasonal', 'cutout');
+  initPeriodToggle('choice_select_spread', 'cutout');
+  initPeriodToggle('choice_yoy', 'cutout');
+  initPeriodToggle('select_yoy', 'cutout');
+  initPeriodToggle('beef_primals', 'cutout');
+  initPeriodToggle('pork_primals', 'cutout');
 </script>
 {% endblock %}

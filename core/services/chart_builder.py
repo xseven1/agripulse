@@ -79,6 +79,20 @@ def _band(fig, df, y_col, curr_yr, doy_col='doy', n_years=5):
     return fig
 
 
+def _slice_period(df, date_col, period='year'):
+    """Slice dataframe to the requested period."""
+    df = df.copy()
+    df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+    max_date = df[date_col].max()
+    if period == 'week':
+        cutoff = max_date - pd.Timedelta(weeks=5)
+    elif period == 'month':
+        cutoff = max_date - pd.Timedelta(weeks=13)
+    else:  # year
+        cutoff = max_date - pd.Timedelta(weeks=52)
+    return df[df[date_col] >= cutoff]
+
+
 def _drop_partial(df, y_col, threshold=0.6):
     """Drop last row if it looks like a partial week artifact."""
     if len(df) > 4:

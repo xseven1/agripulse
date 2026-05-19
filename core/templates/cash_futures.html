@@ -43,5 +43,8 @@
 <script>
 const CHARTS = {{ charts|safe }};
 Object.keys(CHARTS).forEach(id => { renderChart(id, CHARTS[id]); initChartAI(id); });
+  initPeriodToggle('cash_vs_futures', 'cash_futures');
+  initPeriodToggle('basis_rolling', 'cash_futures');
+  initPeriodToggle('basis_band', 'cash_futures');
 </script>
 {% endblock %}

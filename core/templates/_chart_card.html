@@ -1,7 +1,19 @@
 {# Reusable chart card — include with: why, title, desc, chart_id, chart_json #}
+{# Optional: period_toggle=True to show year/month/week switcher #}
 <div class="chart-card">
-  <div class="why-label">{{ why }}</div>
-  <div class="chart-title">{{ title }}</div>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.2rem;">
+    <div style="flex:1;">
+      <div class="why-label">{{ why }}</div>
+      <div class="chart-title">{{ title }}</div>
+    </div>
+    {% if period_toggle %}
+    <div class="period-bar">
+      <button class="period-btn active" onclick="switchPeriod('{{ chart_id }}', 'year', this)">1Y</button>
+      <button class="period-btn" onclick="switchPeriod('{{ chart_id }}', 'month', this)">3M</button>
+      <button class="period-btn" onclick="switchPeriod('{{ chart_id }}', 'week', this)">5W</button>
+    </div>
+    {% endif %}
+  </div>
   <p class="chart-desc">{{ desc }}</p>
   <div class="chart-plot" id="{{ chart_id }}"></div>
   <div class="chart-ai-bar">

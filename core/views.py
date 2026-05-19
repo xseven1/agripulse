@@ -546,6 +546,113 @@ def wasde(request):
 
 
 
+
+# ── API: CHART PERIOD TOGGLE ───────────────────────────────────────────────────
+
+@require_GET
+def api_chart_period(request, chart_id):
+    """Return chart JSON filtered to requested period."""
+    period = request.GET.get('period', 'year')
+    module = request.GET.get('module', '')
+
+    try:
+        chart_json = _get_chart_for_period(chart_id, period)
+        return JsonResponse({'chart': chart_json})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def _get_chart_for_period(chart_id, period):
+    """Build chart JSON for a specific chart_id and period."""
+    import json as json_mod
+
+    # Slaughter charts
+    if chart_id == 'slaughter_seasonal_cattle':
+        df = dl.get_slaughter_all()
+        df = cb._slice_period(df, 'slaughter_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_slaughter_seasonal(df, 'Cattle')))
+
+    elif chart_id == 'slaughter_seasonal_hogs':
+        df = dl.get_slaughter_all()
+        df = cb._slice_period(df, 'slaughter_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_slaughter_seasonal(df, 'Hogs', cb.BLUE)))
+
+    elif chart_id == 'slaughter_yoy_cattle':
+        df = dl.get_slaughter_all()
+        df = cb._slice_period(df, 'slaughter_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_slaughter_yoy_pct(df, 'Cattle')))
+
+    elif chart_id == 'slaughter_yoy_hogs':
+        df = dl.get_slaughter_all()
+        df = cb._slice_period(df, 'slaughter_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_slaughter_yoy_pct(df, 'Hogs')))
+
+    elif chart_id == 'hogs_vs_cattle':
+        df = dl.get_slaughter_all()
+        df = cb._slice_period(df, 'slaughter_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_hogs_vs_cattle(df)))
+
+    elif chart_id == 'carcass_weights':
+        df = dl.get_carcass_weights()
+        df = cb._slice_period(df, 'report_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_carcass_weights(df)))
+
+    # Cutout charts
+    elif chart_id == 'cutout_seasonal':
+        df = dl.get_cutout_all()
+        df = cb._slice_period(df, 'report_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_cutout_seasonal(df)))
+
+    elif chart_id == 'choice_select_spread':
+        df = dl.get_cutout_all()
+        df = cb._slice_period(df, 'report_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_choice_select_spread(df)))
+
+    elif chart_id == 'choice_yoy':
+        df = dl.get_cutout_all()
+        df = cb._slice_period(df, 'report_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_cutout_yoy_pct(df, 'Choice')))
+
+    elif chart_id == 'select_yoy':
+        df = dl.get_cutout_all()
+        df = cb._slice_period(df, 'report_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_cutout_yoy_pct(df, 'Select')))
+
+    elif chart_id == 'beef_primals':
+        df = dl.get_cattle_primals()
+        df = cb._slice_period(df, 'report_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_beef_primals(df)))
+
+    elif chart_id == 'pork_primals':
+        df = dl.get_pork_primals()
+        df = cb._slice_period(df, 'report_date', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_pork_primals(df)))
+
+    # Cash/Futures charts
+    elif chart_id == 'cash_vs_futures':
+        cash_df = dl.get_cash_cattle_all()
+        futures_df = dl.get_futures_endpoint_all()
+        cash_df = cb._slice_period(cash_df, 'report_date', period)
+        futures_df = cb._slice_period(futures_df, 'trading_day', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_cash_vs_futures(cash_df, futures_df)))
+
+    elif chart_id == 'basis_rolling':
+        cash_df = dl.get_cash_cattle_all()
+        futures_df = dl.get_futures_endpoint_all()
+        cash_df = cb._slice_period(cash_df, 'report_date', period)
+        futures_df = cb._slice_period(futures_df, 'trading_day', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_basis_rolling(cash_df, futures_df)))
+
+    elif chart_id == 'basis_band':
+        cash_df = dl.get_cash_cattle_all()
+        futures_df = dl.get_futures_endpoint_all()
+        cash_df = cb._slice_period(cash_df, 'report_date', period)
+        futures_df = cb._slice_period(futures_df, 'trading_day', period)
+        return json_mod.loads(json_mod.dumps(cb.chart_basis_band(cash_df, futures_df)))
+
+    else:
+        return {}
+
 # ── COMPARABLE WEEK FINDER ─────────────────────────────────────────────────────
 
 def comparable(request):
