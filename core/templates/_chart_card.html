@@ -10,7 +10,9 @@
     <div class="period-bar">
       <button class="period-btn active" onclick="switchPeriod('{{ chart_id }}', 'year', this)">1Y</button>
       <button class="period-btn" onclick="switchPeriod('{{ chart_id }}', 'month', this)">3M</button>
+      {% if period_toggle != 'no5w' %}
       <button class="period-btn" onclick="switchPeriod('{{ chart_id }}', 'week', this)">5W</button>
+      {% endif %}
     </div>
     {% endif %}
   </div>

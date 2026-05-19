@@ -85,12 +85,41 @@ def _slice_period(df, date_col, period='year'):
     df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
     max_date = df[date_col].max()
     if period == 'week':
-        cutoff = max_date - pd.Timedelta(weeks=5)
+        cutoff = max_date - pd.Timedelta(weeks=6)
     elif period == 'month':
         cutoff = max_date - pd.Timedelta(weeks=13)
     else:  # year
-        cutoff = max_date - pd.Timedelta(weeks=52)
+        cutoff = max_date - pd.Timedelta(weeks=54)
     return df[df[date_col] >= cutoff]
+
+
+def _period_xaxis(period):
+    """Return appropriate x-axis tick settings for a given period."""
+    if period == 'week':
+        return dict(
+            tickformat='%b %d',
+            dtick=7 * 24 * 60 * 60 * 1000,  # 1 week in ms
+            tickangle=-30,
+            showgrid=True,
+            gridcolor=GRID,
+            tickfont=dict(color=SUB, size=10),
+        )
+    elif period == 'month':
+        return dict(
+            tickformat='%b %d',
+            dtick=14 * 24 * 60 * 60 * 1000,  # 2 weeks in ms
+            tickangle=-30,
+            showgrid=True,
+            gridcolor=GRID,
+            tickfont=dict(color=SUB, size=10),
+        )
+    else:  # year
+        return dict(
+            tickformat='%b %y',
+            dtick='M2',  # every 2 months
+            showgrid=False,
+            tickfont=dict(color=SUB, size=10),
+        )
 
 
 def _drop_partial(df, y_col, threshold=0.6):

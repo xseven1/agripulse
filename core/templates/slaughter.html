@@ -22,9 +22,9 @@
   </div>
   <div class="section-label">Cattle Supply Volume</div>
   <div class="two-col">
-    {% with why="Is cattle supply above or below normal?" title="Cattle Slaughter vs 5-Year Range" desc="Gold line = this year. Shaded band = 10th–90th percentile of prior 5 years same week. Line above band = unusually high supply = bearish for prices." chart_id="slaughter_seasonal_cattle" period_toggle=True %}
+    {% with why="Is cattle supply above or below normal?" title="Cattle Slaughter vs 5-Year Range" desc="Gold line = this year. Shaded band = 10th–90th percentile of prior 5 years same week. Line above band = unusually high supply = bearish for prices." chart_id="slaughter_seasonal_cattle" period_toggle="no5w" %}
     {% include '_chart_card.html' %}{% endwith %}
-    {% with why="Which weeks ran hot or cold vs last year?" title="Cattle Slaughter % Change vs Year Ago" desc="Green = above last year (more supply = bearish). Red = below. Shows which weeks are running ahead or behind on pace." chart_id="slaughter_yoy_cattle" period_toggle=True %}
+    {% with why="Which weeks ran hot or cold vs last year?" title="Cattle Slaughter % Change vs Year Ago" desc="Green = above last year (more supply = bearish). Red = below. Shows which weeks are running ahead or behind on pace." chart_id="slaughter_yoy_cattle" period_toggle="no5w" %}
     {% include '_chart_card.html' %}{% endwith %}
   </div>
   <div class="section-label">Cattle YTD & Production</div>
@@ -51,9 +51,9 @@
   </div>
   <div class="section-label">Hog Supply Volume</div>
   <div class="two-col">
-    {% with why="Is hog supply above or below normal?" title="Hog Slaughter vs 5-Year Range" desc="Gold line = this year vs the 5-year historical range. Unusually high hog supply is bearish for pork prices." chart_id="slaughter_seasonal_hogs" period_toggle=True %}
+    {% with why="Is hog supply above or below normal?" title="Hog Slaughter vs 5-Year Range" desc="Gold line = this year vs the 5-year historical range. Unusually high hog supply is bearish for pork prices." chart_id="slaughter_seasonal_hogs" period_toggle="no5w" %}
     {% include '_chart_card.html' %}{% endwith %}
-    {% with why="Which weeks ran hot or cold vs last year?" title="Hog Slaughter % Change vs Year Ago" desc="Week-by-week % change vs same week last year. Consistent green = supply overhang building." chart_id="slaughter_yoy_hogs" period_toggle=True %}
+    {% with why="Which weeks ran hot or cold vs last year?" title="Hog Slaughter % Change vs Year Ago" desc="Week-by-week % change vs same week last year. Consistent green = supply overhang building." chart_id="slaughter_yoy_hogs" period_toggle="no5w" %}
     {% include '_chart_card.html' %}{% endwith %}
   </div>
   <div class="section-label">Hog YTD & Production</div>
@@ -73,7 +73,7 @@
   </div>
   <div class="section-label">Cross-Species Comparison</div>
   <div class="solo-center">
-    {% with why="Are cattle and hogs moving in the same direction?" title="Hogs vs. Cattle — % Change vs. Year Ago" desc="Both species on one chart. Divergence between cattle (gold) and hogs (blue) reveals species-specific supply dynamics." chart_id="hogs_vs_cattle" period_toggle=True %}
+    {% with why="Are cattle and hogs moving in the same direction?" title="Hogs vs. Cattle — % Change vs. Year Ago" desc="Both species on one chart. Divergence between cattle (gold) and hogs (blue) reveals species-specific supply dynamics." chart_id="hogs_vs_cattle" period_toggle="no5w" %}
     {% include '_chart_card.html' %}{% endwith %}
   </div>
 </div>

@@ -566,67 +566,77 @@ def _get_chart_for_period(chart_id, period):
     """Build chart JSON for a specific chart_id and period."""
     import json as json_mod
 
+    def apply_period_xaxis(chart_dict, period):
+        """Apply period-appropriate x-axis labels to chart JSON."""
+        if not chart_dict or 'layout' not in chart_dict:
+            return chart_dict
+        xaxis_settings = cb._period_xaxis(period)
+        if 'xaxis' not in chart_dict['layout']:
+            chart_dict['layout']['xaxis'] = {}
+        chart_dict['layout']['xaxis'].update(xaxis_settings)
+        return chart_dict
+
     # Slaughter charts
     if chart_id == 'slaughter_seasonal_cattle':
         df = dl.get_slaughter_all()
         df = cb._slice_period(df, 'slaughter_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_slaughter_seasonal(df, 'Cattle')))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_slaughter_seasonal(df, 'Cattle'))), period)
 
     elif chart_id == 'slaughter_seasonal_hogs':
         df = dl.get_slaughter_all()
         df = cb._slice_period(df, 'slaughter_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_slaughter_seasonal(df, 'Hogs', cb.BLUE)))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_slaughter_seasonal(df, 'Hogs', cb.BLUE))), period)
 
     elif chart_id == 'slaughter_yoy_cattle':
         df = dl.get_slaughter_all()
         df = cb._slice_period(df, 'slaughter_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_slaughter_yoy_pct(df, 'Cattle')))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_slaughter_yoy_pct(df, 'Cattle'))), period)
 
     elif chart_id == 'slaughter_yoy_hogs':
         df = dl.get_slaughter_all()
         df = cb._slice_period(df, 'slaughter_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_slaughter_yoy_pct(df, 'Hogs')))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_slaughter_yoy_pct(df, 'Hogs'))), period)
 
     elif chart_id == 'hogs_vs_cattle':
         df = dl.get_slaughter_all()
         df = cb._slice_period(df, 'slaughter_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_hogs_vs_cattle(df)))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_hogs_vs_cattle(df))), period)
 
     elif chart_id == 'carcass_weights':
         df = dl.get_carcass_weights()
         df = cb._slice_period(df, 'report_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_carcass_weights(df)))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_carcass_weights(df))), period)
 
     # Cutout charts
     elif chart_id == 'cutout_seasonal':
         df = dl.get_cutout_all()
         df = cb._slice_period(df, 'report_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_cutout_seasonal(df)))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_cutout_seasonal(df))), period)
 
     elif chart_id == 'choice_select_spread':
         df = dl.get_cutout_all()
         df = cb._slice_period(df, 'report_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_choice_select_spread(df)))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_choice_select_spread(df))), period)
 
     elif chart_id == 'choice_yoy':
         df = dl.get_cutout_all()
         df = cb._slice_period(df, 'report_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_cutout_yoy_pct(df, 'Choice')))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_cutout_yoy_pct(df, 'Choice'))), period)
 
     elif chart_id == 'select_yoy':
         df = dl.get_cutout_all()
         df = cb._slice_period(df, 'report_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_cutout_yoy_pct(df, 'Select')))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_cutout_yoy_pct(df, 'Select'))), period)
 
     elif chart_id == 'beef_primals':
         df = dl.get_cattle_primals()
         df = cb._slice_period(df, 'report_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_beef_primals(df)))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_beef_primals(df))), period)
 
     elif chart_id == 'pork_primals':
         df = dl.get_pork_primals()
         df = cb._slice_period(df, 'report_date', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_pork_primals(df)))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_pork_primals(df))), period)
 
     # Cash/Futures charts
     elif chart_id == 'cash_vs_futures':
@@ -634,21 +644,21 @@ def _get_chart_for_period(chart_id, period):
         futures_df = dl.get_futures_endpoint_all()
         cash_df = cb._slice_period(cash_df, 'report_date', period)
         futures_df = cb._slice_period(futures_df, 'trading_day', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_cash_vs_futures(cash_df, futures_df)))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_cash_vs_futures(cash_df, futures_df))), period)
 
     elif chart_id == 'basis_rolling':
         cash_df = dl.get_cash_cattle_all()
         futures_df = dl.get_futures_endpoint_all()
         cash_df = cb._slice_period(cash_df, 'report_date', period)
         futures_df = cb._slice_period(futures_df, 'trading_day', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_basis_rolling(cash_df, futures_df)))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_basis_rolling(cash_df, futures_df))), period)
 
     elif chart_id == 'basis_band':
         cash_df = dl.get_cash_cattle_all()
         futures_df = dl.get_futures_endpoint_all()
         cash_df = cb._slice_period(cash_df, 'report_date', period)
         futures_df = cb._slice_period(futures_df, 'trading_day', period)
-        return json_mod.loads(json_mod.dumps(cb.chart_basis_band(cash_df, futures_df)))
+        return apply_period_xaxis(json_mod.loads(json_mod.dumps(cb.chart_basis_band(cash_df, futures_df))), period)
 
     else:
         return {}
