@@ -10,59 +10,36 @@
 <!-- KPI CARDS -->
 <div class="kpi-row">
   {% if kpis.cattle_slaughter %}
-  <a href="{% url 'slaughter' %}" class="kpi-card {{ kpis.cattle_slaughter.signal }}" style="text-decoration:none;">
-    <div class="kpi-label">🐄 Cattle Slaughter</div>
+  <a href="{% url 'slaughter' %}" class="kpi-card {{ kpis.cattle_slaughter.signal }}" style="text-decoration:none;flex:1;">
+    <div class="kpi-label">{{ kpis.cattle_slaughter.label }}</div>
     <div class="kpi-value">{{ kpis.cattle_slaughter.value }}</div>
     <div class="kpi-delta {% if '-' in kpis.cattle_slaughter.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.cattle_slaughter.delta }}</div>
-    <div class="kpi-note">{{ kpis.cattle_slaughter.note }}</div>
   </a>
   {% endif %}
-  {% if kpis.hogs_slaughter %}
-  <a href="{% url 'slaughter' %}" class="kpi-card {{ kpis.hogs_slaughter.signal }}" style="text-decoration:none;">
-    <div class="kpi-label">🐷 Hog Slaughter</div>
-    <div class="kpi-value">{{ kpis.hogs_slaughter.value }}</div>
-    <div class="kpi-delta {% if '-' in kpis.hogs_slaughter.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.hogs_slaughter.delta }}</div>
-    <div class="kpi-note">{{ kpis.hogs_slaughter.note }}</div>
+  {% if kpis.cattle_price %}
+  <a href="{% url 'cash_futures' %}" class="kpi-card {{ kpis.cattle_price.signal }}" style="text-decoration:none;flex:1;">
+    <div class="kpi-label">{{ kpis.cattle_price.label }}</div>
+    <div class="kpi-value">{{ kpis.cattle_price.value }}</div>
+    <div class="kpi-delta {% if '-' in kpis.cattle_price.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.cattle_price.delta }}</div>
   </a>
   {% endif %}
-  {% if kpis.choice_cutout %}
-  <a href="{% url 'cutout' %}" class="kpi-card {{ kpis.choice_cutout.signal }}" style="text-decoration:none;">
-    <div class="kpi-label">🥩 Choice Cutout</div>
-    <div class="kpi-value">{{ kpis.choice_cutout.value }}</div>
-    <div class="kpi-delta {% if '-' in kpis.choice_cutout.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.choice_cutout.delta }}</div>
-    <div class="kpi-note">{{ kpis.choice_cutout.note }}</div>
+  {% if kpis.hog_slaughter %}
+  <a href="{% url 'slaughter' %}" class="kpi-card {{ kpis.hog_slaughter.signal }}" style="text-decoration:none;flex:1;">
+    <div class="kpi-label">{{ kpis.hog_slaughter.label }}</div>
+    <div class="kpi-value">{{ kpis.hog_slaughter.value }}</div>
+    <div class="kpi-delta {% if '-' in kpis.hog_slaughter.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.hog_slaughter.delta }}</div>
   </a>
   {% endif %}
-  {% if kpis.spread %}
-  <a href="{% url 'cutout' %}" class="kpi-card {{ kpis.spread.signal }}" style="text-decoration:none;">
-    <div class="kpi-label">📊 Choice/Select Spread</div>
-    <div class="kpi-value">{{ kpis.spread.value }}</div>
-    <div class="kpi-delta {% if 'narrowing' in kpis.spread.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.spread.delta }}</div>
-    <div class="kpi-note">{{ kpis.spread.note }}</div>
-  </a>
-  {% endif %}
-  {% if kpis.cash_price %}
-  <a href="{% url 'cash_futures' %}" class="kpi-card {{ kpis.cash_price.signal }}" style="text-decoration:none;">
-    <div class="kpi-label">💵 Cash Cattle Price</div>
-    <div class="kpi-value">{{ kpis.cash_price.value }}</div>
-    <div class="kpi-delta {% if '-' in kpis.cash_price.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.cash_price.delta }}</div>
-    <div class="kpi-note">{{ kpis.cash_price.note }}</div>
+  {% if kpis.hog_price %}
+  <a href="{% url 'cash_futures' %}" class="kpi-card {{ kpis.hog_price.signal }}" style="text-decoration:none;flex:1;">
+    <div class="kpi-label">{{ kpis.hog_price.label }}</div>
+    <div class="kpi-value">{{ kpis.hog_price.value }}</div>
+    <div class="kpi-delta {% if '-' in kpis.hog_price.delta %}delta-neg{% else %}delta-pos{% endif %}">{{ kpis.hog_price.delta }}</div>
   </a>
   {% endif %}
 </div>
 
-<!-- PERIOD TOGGLE FOR SLAUGHTER -->
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
-  <div class="section-label" style="margin:0;">Market Snapshot</div>
-  <div style="display:flex;align-items:center;gap:.5rem;">
-    <span style="font-size:.72rem;color:var(--sub);font-weight:500;">Slaughter view:</span>
-    <div class="period-bar">
-      <a href="?period=week"  class="period-btn {% if period == 'week' or not period %}active{% endif %}">Weekly</a>
-      <a href="?period=month" class="period-btn {% if period == 'month' %}active{% endif %}">Monthly</a>
-      <a href="?period=year"  class="period-btn {% if period == 'year' %}active{% endif %}">Annual</a>
-    </div>
-  </div>
-</div>
+<div class="section-label">Market Snapshot</div>
 
 <!-- TWO COLUMN CATTLE vs PORK -->
 <div class="two-col">
@@ -72,22 +49,47 @@
     <div class="section-label">🐄 Cattle</div>
 
     <div class="chart-card">
-      <div class="why-label">How is cattle supply trending?</div>
-      <div class="chart-title">Weekly Cattle Slaughter</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem;">
+        <div>
+          <div class="why-label">How is cattle supply trending?</div>
+          <div class="chart-title">Cattle Slaughter</div>
+        </div>
+        <div class="period-bar">
+          <button class="period-btn active" onclick="switchDashChart('cattle_slaughter','week',this)">W</button>
+          <button class="period-btn" onclick="switchDashChart('cattle_slaughter','month',this)">M</button>
+          <button class="period-btn" onclick="switchDashChart('cattle_slaughter','year',this)">Y</button>
+        </div>
+      </div>
       <div id="cattle_slaughter" class="chart-plot"></div>
     </div>
 
     <div class="chart-card">
-      <div class="why-label">What are producers getting for live cattle?</div>
-      <div class="chart-title">Cash Cattle Price ($/cwt live)</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem;">
+        <div>
+          <div class="why-label">What are producers getting for live cattle?</div>
+          <div class="chart-title">Cash Cattle Price ($/cwt live)</div>
+        </div>
+        <div class="period-bar">
+          <button class="period-btn active" onclick="switchDashChart('cattle_cash','year',this)">1Y</button>
+          <button class="period-btn" onclick="switchDashChart('cattle_cash','month',this)">3M</button>
+        </div>
+      </div>
       <div id="cattle_cash" class="chart-plot"></div>
     </div>
 
-    <div class="chart-card">
-      <div class="why-label">What is beef demand signaling?</div>
-      <div class="chart-title">Choice Beef Cutout Value</div>
+    <!-- <div class="chart-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem;">
+        <div>
+          <div class="why-label">What is beef demand signaling?</div>
+          <div class="chart-title">Choice Beef Cutout Value</div>
+        </div>
+        <div class="period-bar">
+          <button class="period-btn active" onclick="switchDashChart('beef_cutout','year',this)">1Y</button>
+          <button class="period-btn" onclick="switchDashChart('beef_cutout','month',this)">3M</button>
+        </div>
+      </div>
       <div id="beef_cutout" class="chart-plot"></div>
-    </div>
+    </div> -->
   </div>
 
   <!-- PORK -->
@@ -95,27 +97,52 @@
     <div class="section-label">🐷 Pork</div>
 
     <div class="chart-card">
-      <div class="why-label">How is hog supply trending?</div>
-      <div class="chart-title">Weekly Hog Slaughter</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem;">
+        <div>
+          <div class="why-label">How is hog supply trending?</div>
+          <div class="chart-title">Hog Slaughter</div>
+        </div>
+        <div class="period-bar">
+          <button class="period-btn active" onclick="switchDashChart('hog_slaughter','week',this)">W</button>
+          <button class="period-btn" onclick="switchDashChart('hog_slaughter','month',this)">M</button>
+          <button class="period-btn" onclick="switchDashChart('hog_slaughter','year',this)">Y</button>
+        </div>
+      </div>
       <div id="hog_slaughter" class="chart-plot"></div>
     </div>
 
     <div class="chart-card">
-      <div class="why-label">What are producers getting across regions?</div>
-      <div class="chart-title">Cash Hog Price — National, Iowa/S.MN, W. Cornbelt</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem;">
+        <div>
+          <div class="why-label">What are producers getting across regions?</div>
+          <div class="chart-title">Cash Hog Price — Nat / Iowa / W.Cornbelt</div>
+        </div>
+        <div class="period-bar">
+          <button class="period-btn active" onclick="switchDashChart('pork_regional','year',this)">1Y</button>
+          <button class="period-btn" onclick="switchDashChart('pork_regional','month',this)">3M</button>
+        </div>
+      </div>
       <div id="pork_regional" class="chart-plot"></div>
     </div>
 
-    <div class="chart-card">
-      <div class="why-label">What is pork demand signaling?</div>
-      <div class="chart-title">Pork Carcass Value</div>
+    <!-- <div class="chart-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem;">
+        <div>
+          <div class="why-label">What is pork demand signaling?</div>
+          <div class="chart-title">Pork Carcass Value</div>
+        </div>
+        <div class="period-bar">
+          <button class="period-btn active" onclick="switchDashChart('pork_cutout','year',this)">1Y</button>
+          <button class="period-btn" onclick="switchDashChart('pork_cutout','month',this)">3M</button>
+        </div>
+      </div>
       <div id="pork_cutout" class="chart-plot"></div>
-    </div>
+    </div> -->
   </div>
 </div>
 
 <!-- SPECIES MIX & COW SLAUGHTER -->
-<div class="two-col" style="margin-top:.5rem;">
+<!-- <div class="two-col" style="margin-top:.5rem;">
   <div class="chart-card">
     <div class="why-label">What's the species mix this week?</div>
     <div class="chart-title">Cattle vs Hog Share of Total Slaughter</div>
@@ -126,7 +153,7 @@
     <div class="chart-title">Cow Slaughter — Dairy vs Other</div>
     <div id="cow_donut" class="chart-plot"></div>
   </div>
-</div>
+</div> -->
 
 <!-- FEED COSTS -->
 <div class="section-label" style="margin-top:1.5rem;">🌽 Feed Costs</div>
@@ -197,5 +224,26 @@
 <script>
 const CHARTS = {{ charts|safe }};
 Object.entries(CHARTS).forEach(([id, json]) => renderChart(id, json));
+
+async function switchDashChart(chartId, period, btn) {
+  // Update button state within this chart's period-bar
+  const bar = btn.closest('.period-bar');
+  if (bar) bar.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const el = document.getElementById(chartId);
+  if (!el) return;
+  el.style.opacity = '0.4';
+
+  try {
+    const res = await fetch(`/api/dashboard-chart/${chartId}/?period=${period}`);
+    const data = await res.json();
+    if (data.chart) renderChart(chartId, data.chart);
+  } catch(e) {
+    console.error('Chart switch failed:', e);
+  } finally {
+    el.style.opacity = '1';
+  }
+}
 </script>
 {% endblock %}

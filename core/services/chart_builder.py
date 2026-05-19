@@ -150,24 +150,37 @@ def _prep_slaughter(df):
 
 
 def chart_slaughter_seasonal(df, commodity='Cattle', color=GOLD, height=310):
-    """Current year vs 5-year historical band — weekly slaughter."""
+    """Grouped bar chart — this year vs year ago side by side."""
     w = _prep_slaughter(df)
     sub = w[w['commodity'] == commodity]
     curr_yr = sub['Year'].max()
     curr = _drop_partial(sub[sub['Year'] == curr_yr].sort_values('week_start'), 'count')
+    prev = sub[sub['Year'] == curr_yr - 1].sort_values('week_start')
+
+    merged = curr.merge(prev[['iso_week', 'count']], on='iso_week', suffixes=('_curr', '_prev'), how='left')
+    merged = merged.sort_values('week_start')
+
+    bar_color = GOLD if commodity == 'Cattle' else BLUE
 
     fig = go.Figure()
-    fig = _band(fig, sub, 'count', curr_yr)
-    fig.add_trace(go.Scatter(
-        x=curr['doy'], y=curr['count'],
-        mode='lines+markers', name=str(curr_yr),
-        line=dict(color=color, width=2.5), marker=dict(size=4, color=color),
-        connectgaps=False,
-        hovertemplate='%{y:,.0f} head<extra></extra>',
+    fig.add_trace(go.Bar(
+        x=merged['week_start'], y=merged['count_curr'],
+        name=str(curr_yr),
+        marker_color=bar_color,
+        marker_line_width=0,
+        hovertemplate='%{x|%b %d}<br>%{y:,.0f} head<extra>' + str(curr_yr) + '</extra>',
     ))
-    fig.update_layout(**_L(height=height))
-    fig.update_xaxes(**MON_TICKS)
-    fig.update_yaxes(tickformat=',.0f')
+    fig.add_trace(go.Bar(
+        x=merged['week_start'], y=merged['count_prev'],
+        name=str(curr_yr - 1),
+        marker_color=MUTED,
+        marker_line_width=0,
+        opacity=0.7,
+        hovertemplate='%{x|%b %d}<br>%{y:,.0f} head<extra>' + str(curr_yr - 1) + '</extra>',
+    ))
+    fig.update_layout(**_L(height=height, barmode='group'))
+    fig.update_xaxes(tickformat="%b '%y", tickfont=dict(color=SUB, size=10))
+    fig.update_yaxes(tickformat=',.0f', title_text='Head')
     return to_json(fig)
 
 
@@ -1301,7 +1314,7 @@ def chart_dash_pork_regional(df, height=260):
             continue
         fig.add_trace(go.Scatter(
             x=sub['report_date'], y=sub['wtd_avg'],
-            mode='lines',
+            mode='lines', 
             name=label_map.get(region, region),
             line=dict(color=color, width=2),
             connectgaps=False,
@@ -1363,4 +1376,106 @@ def chart_dash_feed_futures(df, commodity='corn', height=240):
     fig.update_layout(**_L(height=height))
     fig.update_xaxes(tickformat='%b %y', tickfont=dict(color=SUB, size=10))
     fig.update_yaxes(tickprefix='$', title_text=f'{label} ($/bu)')
+    return to_json(fig)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HOG-SPECIFIC CHARTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def chart_hog_slaughter_seasonal(slaughter_df, height=380):
+    """Hog slaughter this year vs year ago — grouped bar, same style as cattle."""
+    return chart_slaughter_seasonal(slaughter_df, 'Hogs', BLUE, height=height)
+
+
+def chart_hog_carcass_weights(harvest_usda_df, height=340):
+    """Avg hog carcass weight vs 5-year seasonal band."""
+    df = harvest_usda_df.copy()
+    df['report_date'] = pd.to_datetime(df['report_date'], errors='coerce')
+    df = df.dropna(subset=['report_date', 'avg_carcass_weight'])
+    df = df.sort_values('report_date')
+
+    current_year = df['report_date'].dt.year.max()
+    curr = df[df['report_date'].dt.year == current_year].copy()
+    hist = df[df['report_date'].dt.year < current_year].copy()
+
+    # 5-year band by week of year
+    hist['week_of_year'] = hist['report_date'].dt.isocalendar().week.astype(int)
+    band = hist.groupby('week_of_year')['avg_carcass_weight'].agg(
+        low=lambda x: x.quantile(0.10),
+        high=lambda x: x.quantile(0.90),
+        avg='mean',
+    ).reset_index()
+
+    # Aggregate to weekly to avoid daily noise
+    curr['week'] = curr['report_date'].dt.to_period('W').apply(lambda r: r.start_time)
+    curr = curr.groupby('week')['avg_carcass_weight'].mean().reset_index()
+    curr.columns = ['report_date', 'avg_carcass_weight']
+    curr['report_date'] = pd.to_datetime(curr['report_date'])
+    curr['week_of_year'] = curr['report_date'].dt.isocalendar().week.astype(int)
+    curr_band = curr.merge(band, on='week_of_year', how='left')
+
+    fig = go.Figure()
+    # Band
+    fig.add_trace(go.Scatter(
+        x=curr_band['report_date'].tolist() + curr_band['report_date'].tolist()[::-1],
+        y=curr_band['high'].tolist() + curr_band['low'].tolist()[::-1],
+        fill='toself', fillcolor=BAND, line=dict(width=0),
+        name='5-yr Range', hoverinfo='skip', showlegend=True,
+    ))
+    # 5yr avg
+    fig.add_trace(go.Scatter(
+        x=curr_band['report_date'], y=curr_band['avg'],
+        mode='lines', name='5-yr Avg',
+        line=dict(color=MUTED, width=1.2, dash='dot'),
+        connectgaps=False,
+    ))
+    # This year
+    fig.add_trace(go.Scatter(
+        x=curr_band['report_date'], y=curr_band['avg_carcass_weight'],
+        mode='lines+markers', name=str(current_year),
+        line=dict(color=BLUE, width=2.5),
+        marker=dict(size=4),
+        connectgaps=False,
+        hovertemplate='%{x|%b %d}: %{y:.1f} lbs<extra></extra>',
+    ))
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(tickformat="%b '%y")
+    fig.update_yaxes(ticksuffix=' lbs', title_text='Avg Carcass Weight')
+    return to_json(fig)
+
+
+def chart_implied_pork_production(slaughter_df, harvest_usda_df, height=320):
+    """Implied pork production = hog head count x avg carcass weight."""
+    sl = slaughter_df.copy()
+    sl['slaughter_date'] = pd.to_datetime(sl['slaughter_date'], errors='coerce')
+    sl = sl[sl['commodity'].isin(['Hogs', 'Slaughter Hogs']) & (sl['period'] == 'Current')]
+    sl['week'] = sl['slaughter_date'].dt.to_period('W').apply(lambda r: r.start_time)
+    sl_w = sl.groupby('week')['slaughter'].sum().reset_index()
+
+    hu = harvest_usda_df.copy()
+    hu['report_date'] = pd.to_datetime(hu['report_date'], errors='coerce')
+    hu['week'] = hu['report_date'].dt.to_period('W').apply(lambda r: r.start_time)
+    hu_w = hu.groupby('week')['avg_carcass_weight'].mean().reset_index()
+
+    merged = pd.merge(sl_w, hu_w, on='week', how='inner')
+    merged['implied_lbs'] = merged['slaughter'] * merged['avg_carcass_weight']
+    merged = merged.sort_values('week')
+    # merged = _drop_partial(merged, 'implied_lbs')
+
+    # Rolling 4-week avg
+    merged['roll'] = merged['implied_lbs'].rolling(4, min_periods=1).mean()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+            x=merged['week'], y=merged['implied_lbs'],
+            mode='lines+markers', name='Weekly Production',
+            line=dict(color=BLUE, width=2.5),
+            marker=dict(size=4),
+            connectgaps=False,
+            hovertemplate='%{x|%b %d}: %{y:,.1f}M lbs<extra></extra>',
+        ))
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(tickformat="%b '%y")
+    fig.update_yaxes(tickformat=',.0f', title_text='Lbs')
     return to_json(fig)

@@ -16,4 +16,5 @@ urlpatterns = [
     path('api/chart-insight/<str:chart_id>/', views.api_chart_insight, name='api_chart_insight'),
     path('api/chart-ask/<str:chart_id>/', views.api_chart_ask, name='api_chart_ask'),
     path('api/chart-period/<str:chart_id>/', views.api_chart_period, name='api_chart_period'),
+    path('api/dashboard-chart/<str:chart_id>/', views.api_dashboard_chart, name='api_dashboard_chart'),
 ]

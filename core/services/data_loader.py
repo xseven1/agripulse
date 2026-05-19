@@ -592,3 +592,15 @@ def get_feed_futures_dashboard():
         WHERE close_price IS NOT NULL AND close_price > 0
         ORDER BY commodity, trade_date ASC
     """)
+
+
+def get_harvest_usda():
+    """Hog carcass weights from harvest_usda table."""
+    return query_to_df("""
+        SELECT report_date, avg_carcass_weight, wtd_avg_net_price,
+               EXTRACT(WEEK FROM report_date)::int as week_of_year,
+               EXTRACT(YEAR FROM report_date)::int as year
+        FROM harvest_usda
+        WHERE avg_carcass_weight IS NOT NULL
+        ORDER BY report_date ASC
+    """)

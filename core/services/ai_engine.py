@@ -34,8 +34,8 @@ You can answer questions about: market direction, hedging strategy, LRP vs futur
 
 OUTPUT FORMAT - MANDATORY:
 - Plain text only. Zero markdown. No asterisks, dashes at line start, bold, italic, headers, or bullet symbols.
-- For insight cards: numbered points only. 1. sentence. 2. sentence.
-- For chat responses: write in clear plain paragraphs or short numbered points as appropriate.
+- For chat responses: write in clear plain conversational paragraphs. Never use numbered points in chat responses.
+- For insight cards only: use numbered points. 1. sentence. 2. sentence.
 - Never refuse a livestock/agriculture market question — reason from data and expertise.
 - If data is unavailable for a specific question, say so clearly and provide relevant context from general market knowledge.
 - Flag uncertainty explicitly when speculating beyond the provided data."""
@@ -166,7 +166,7 @@ def ask_chart(chart_id, question, chart_data_summary, history=None):
 def chat(message, module, context_snapshot, history=None):
     """General chatbot — module-aware."""
     ctx = json.dumps(context_snapshot, default=str)
-    system = f"{SYSTEM_BASE}\n\nThe advisor is viewing the {module.replace('_',' ').title()} module.\nCurrent data context:\n{ctx}"
+    system = f"{SYSTEM_BASE}\n\nThe advisor is viewing the {module.replace('_',' ').title()} module.\nRespond conversationally in plain paragraphs. Do not use numbered points.\nCurrent data context:\n{ctx}"
     messages = [{'role': 'system', 'content': system}]
     if history:
         for turn in history[-6:]:

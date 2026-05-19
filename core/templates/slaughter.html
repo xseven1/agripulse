@@ -11,7 +11,6 @@
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchTab('cattle', this)">🐄 Cattle</button>
   <button class="tab-btn" onclick="switchTab('hogs', this)">🐷 Hogs</button>
-  <button class="tab-btn" onclick="switchTab('combined', this)">📊 Combined</button>
 </div>
 
 <!-- CATTLE TAB -->
@@ -20,25 +19,24 @@
     <div class="insight-label">🤖 Cattle Market Insight</div>
     <div class="insight-text">{{ insight_cattle|linebreaksbr }}</div>
   </div>
-  <div class="section-label">Cattle Supply Volume</div>
-  <div class="two-col">
-    {% with why="Is cattle supply above or below normal?" title="Cattle Slaughter vs 5-Year Range" desc="Gold line = this year. Shaded band = 10th–90th percentile of prior 5 years same week. Line above band = unusually high supply = bearish for prices." chart_id="slaughter_seasonal_cattle" period_toggle="no5w" %}
-    {% include '_chart_card.html' %}{% endwith %}
-    {% with why="Which weeks ran hot or cold vs last year?" title="Cattle Slaughter % Change vs Year Ago" desc="Green = above last year (more supply = bearish). Red = below. Shows which weeks are running ahead or behind on pace." chart_id="slaughter_yoy_cattle" period_toggle="no5w" %}
-    {% include '_chart_card.html' %}{% endwith %}
-  </div>
-  <div class="section-label">Cattle YTD & Production</div>
-  <div class="two-col">
-    {% with why="How much total cattle supply has accumulated?" title="YTD Cumulative Cattle Slaughter" desc="Running total from Jan 1. The gap between this year and last year shows cumulative supply overhang or deficit." chart_id="ytd_cattle" %}
-    {% include '_chart_card.html' %}{% endwith %}
-    {% with why="Are heavier animals offsetting fewer head?" title="Implied Beef Production (Head × Carcass Weight)" desc="Head count × avg carcass weight = total lbs produced. Heavier animals can offset fewer head — or compound the oversupply." chart_id="implied_beef" %}
+
+  <div class="section-label">Cattle Supply — Current vs Year Ago</div>
+  <div class="width-100%">
+    {% with why="Is cattle slaughter above or below last year?" title="Cattle Slaughter — This Year vs Year Ago" desc="Side by side bars for each week. Gold = this year, gray = year ago. Easy to see which weeks ran hot or cold vs last year." chart_id="slaughter_seasonal_cattle" %}
     {% include '_chart_card.html' %}{% endwith %}
   </div>
-  <div class="section-label">Herd Signals</div>
+
+  <div class="section-label">Herd Signals & Carcass Weights</div>
   <div class="two-col">
     {% with why="Are producers expanding or liquidating breeding herds?" title="Cow Slaughter — Dairy vs. Other Cows" desc="Elevated dairy cow slaughter signals herd liquidation — a longer-term bearish signal as it reduces future calf supply." chart_id="cow_slaughter" %}
     {% include '_chart_card.html' %}{% endwith %}
-    {% with why="Are carcass weights rising or falling?" title="Avg Carcass Weight vs 5-Year Range" desc="Heavier carcasses mean more total beef with the same or fewer head. Weight above the band signals animals are on feed longer." chart_id="carcass_weights" period_toggle=True %}
+    {% with why="Are carcass weights rising or falling?" title="YTD Avg Cattle Carcass Weight" desc="Heavier carcasses mean more total beef with the same or fewer head. Weight above the band signals animals are on feed longer." chart_id="carcass_weights" period_toggle="no5w" %}
+    {% include '_chart_card.html' %}{% endwith %}
+  </div>
+
+  <div class="section-label">Implied Beef Production</div>
+  <div class="width-100%">
+    {% with why="Are heavier animals offsetting fewer head?" title="Implied Beef Production (Head × Carcass Weight)" desc="Head count × avg carcass weight = total lbs produced. Heavier animals can offset fewer head — or compound the oversupply." chart_id="implied_beef" %}
     {% include '_chart_card.html' %}{% endwith %}
   </div>
 </div>
@@ -49,31 +47,22 @@
     <div class="insight-label">🤖 Hog Market Insight</div>
     <div class="insight-text">{{ insight_hogs|linebreaksbr }}</div>
   </div>
-  <div class="section-label">Hog Supply Volume</div>
-  <div class="two-col">
-    {% with why="Is hog supply above or below normal?" title="Hog Slaughter vs 5-Year Range" desc="Gold line = this year vs the 5-year historical range. Unusually high hog supply is bearish for pork prices." chart_id="slaughter_seasonal_hogs" period_toggle="no5w" %}
-    {% include '_chart_card.html' %}{% endwith %}
-    {% with why="Which weeks ran hot or cold vs last year?" title="Hog Slaughter % Change vs Year Ago" desc="Week-by-week % change vs same week last year. Consistent green = supply overhang building." chart_id="slaughter_yoy_hogs" period_toggle="no5w" %}
-    {% include '_chart_card.html' %}{% endwith %}
-  </div>
-  <div class="section-label">Hog YTD & Production</div>
-  <div class="two-col">
-    {% with why="How much total hog supply has accumulated?" title="YTD Cumulative Hog Slaughter" desc="Running total vs last year. Widening gap = more pork supply than last year = bearish pressure." chart_id="ytd_hogs" %}
-    {% include '_chart_card.html' %}{% endwith %}
-    {% with why="Are heavier hogs offsetting fewer head?" title="Implied Pork Production (Head × Carcass Weight)" desc="Total pork lbs produced. Weight gains can mask head count changes in either direction." chart_id="implied_pork" %}
-    {% include '_chart_card.html' %}{% endwith %}
-  </div>
-</div>
 
-<!-- COMBINED TAB -->
-<div id="tab-combined" class="tab-content" style="display:none;">
-  <div class="module-insight">
-    <div class="insight-label">🤖 Combined Market Insight</div>
-    <div class="insight-text">{{ insight|linebreaksbr }}</div>
+  <div class="section-label">Hog Supply — Current vs Year Ago</div>
+  <div class="width-100%">
+    {% with why="Is hog slaughter above or below last year?" title="Hog Slaughter — This Year vs Year Ago" desc="Side by side bars for each week. Blue = this year, gray = year ago. Easy to see which weeks ran hot or cold vs last year." chart_id="slaughter_seasonal_hogs" %}
+    {% include '_chart_card.html' %}{% endwith %}
   </div>
-  <div class="section-label">Cross-Species Comparison</div>
-  <div class="solo-center">
-    {% with why="Are cattle and hogs moving in the same direction?" title="Hogs vs. Cattle — % Change vs. Year Ago" desc="Both species on one chart. Divergence between cattle (gold) and hogs (blue) reveals species-specific supply dynamics." chart_id="hogs_vs_cattle" period_toggle="no5w" %}
+
+  <div class="section-label">Hog Carcass Weights</div>
+  <div class="width-100%">
+    {% with why="Are hog carcass weights rising or falling?" title="YTD Avg Hog Carcass Weight" desc="Heavier carcasses mean more total pork. Weight above the band signals animals are being held longer — more total supply." chart_id="hog_carcass_weights" %}
+    {% include '_chart_card.html' %}{% endwith %}
+  </div>
+
+  <div class="section-label">Implied Pork Production</div>
+  <div class="width-100%">
+    {% with why="Are heavier hogs offsetting fewer head?" title="Implied Pork Production (Head × Carcass Weight)" desc="Total pork lbs produced. Weight gains can mask head count changes in either direction." chart_id="implied_pork_v2" %}
     {% include '_chart_card.html' %}{% endwith %}
   </div>
 </div>
@@ -84,13 +73,15 @@
 {% block scripts %}
 <script>
 const CHARTS = {{ charts|safe }};
-Object.keys(CHARTS).forEach(id => { renderChart(id, CHARTS[id]); initChartAI(id); });
-  initPeriodToggle('slaughter_seasonal_cattle', 'slaughter');
-  initPeriodToggle('slaughter_seasonal_hogs', 'slaughter');
-  initPeriodToggle('slaughter_yoy_cattle', 'slaughter');
-  initPeriodToggle('slaughter_yoy_hogs', 'slaughter');
-  initPeriodToggle('hogs_vs_cattle', 'slaughter');
-  initPeriodToggle('carcass_weights', 'slaughter');
+
+// Render all charts after DOM is fully ready
+window.addEventListener('load', () => {
+  Object.keys(CHARTS).forEach(id => {
+    renderChart(id, CHARTS[id]);
+    initChartAI(id);
+  });
+});
+
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -99,7 +90,7 @@ function switchTab(name, btn) {
   setTimeout(() => {
     Object.keys(CHARTS).forEach(id => {
       const el = document.getElementById(id);
-      if (el) Plotly.relayout(el, {autosize: true});
+      if (el) renderChart(id, CHARTS[id]);
     });
   }, 50);
 }

@@ -128,7 +128,69 @@ def dashboard(request):
 
 
 def _compute_dashboard_kpis(slaughter_rows, cutout_rows, cash_rows):
-    """Compute WoW changes for dashboard KPI cards."""
+    """4 KPI cards: cattle slaughter, cattle price, hog slaughter, hog price."""
+    kpis = {}
+
+    # Cattle & Hog slaughter WoW
+    try:
+        for row in slaughter_rows:
+            commodity = row['commodity']
+            curr = row['slaughter']
+            prev = row['week_ago']
+            if curr and prev and prev > 0:
+                wow = (curr - prev) / prev * 100
+                key = 'cattle' if 'attle' in commodity else 'hog'
+                label = '🐄 Cattle Slaughter' if key == 'cattle' else '🐷 Hog Slaughter'
+                kpis[key + '_slaughter'] = {
+                    'label': label,
+                    'value': f"{curr:,.0f} head",
+                    'delta': f"{wow:+.1f}% vs last week",
+                    'signal': 'bear' if wow > 2 else ('bull' if wow < -2 else 'neut'),
+                }
+    except Exception:
+        pass
+
+    # Cattle cash price WoW
+    try:
+        valid = [r for r in cash_rows if r.get('weighted_avg_price') and 100 < r['weighted_avg_price'] < 400]
+        if len(valid) >= 2:
+            curr, prev = valid[0]['weighted_avg_price'], valid[1]['weighted_avg_price']
+            wow = curr - prev
+            kpis['cattle_price'] = {
+                'label': '💵 Cattle Cash Price',
+                'value': f"${curr:.2f}/cwt",
+                'delta': f"{wow:+.2f} vs prev day",
+                'signal': 'bull' if wow > 0 else ('bear' if wow < 0 else 'neut'),
+            }
+    except Exception:
+        pass
+
+    # Hog cash price — use nearby futures national as proxy
+    try:
+        from core.services import data_loader as dl_inner
+        hog_cash = dl_inner.query_to_df("""
+            SELECT report_date, wtd_avg FROM nearby_futures
+            WHERE name = 'National' AND wtd_avg IS NOT NULL
+            ORDER BY report_date DESC LIMIT 5
+        """)
+        if len(hog_cash) >= 2:
+            curr = hog_cash.iloc[0]['wtd_avg']
+            prev = hog_cash.iloc[1]['wtd_avg']
+            wow = curr - prev
+            kpis['hog_price'] = {
+                'label': '🐷 Hog Cash Price',
+                'value': f"${curr:.2f}/cwt",
+                'delta': f"{wow:+.2f} vs prev week",
+                'signal': 'bull' if wow > 0 else ('bear' if wow < 0 else 'neut'),
+            }
+    except Exception:
+        pass
+
+    return kpis
+
+
+def _compute_slaughter_kpis(slaughter_rows, carcass_rows):
+    """WoW KPIs for slaughter module — cattle head, hog head, carcass weight."""
     kpis = {}
     try:
         for row in slaughter_rows:
@@ -137,83 +199,14 @@ def _compute_dashboard_kpis(slaughter_rows, cutout_rows, cash_rows):
             prev = row['week_ago']
             if curr and prev and prev > 0:
                 wow = (curr - prev) / prev * 100
-                kpis[commodity.lower() + '_slaughter'] = {
-                    'value': f"{curr:,.0f}",
-                    'delta': f"{wow:+.1f}%",
-                    'signal': 'bear' if wow > 2 else ('bull' if wow < -2 else 'neut'),
-                    'note': 'head vs last week',
-                }
-    except Exception:
-        pass
-
-    try:
-        cutout_by_attr = {}
-        for row in cutout_rows:
-            attr = row['attribute']
-            cutout_by_attr.setdefault(attr, []).append(row['value'])
-        for attr in ['Choice', 'Select']:
-            if attr in cutout_by_attr and len(cutout_by_attr[attr]) >= 2:
-                vals = cutout_by_attr[attr]
-                curr, prev = vals[0], vals[1]
-                wow = curr - prev
-                kpis[attr.lower() + '_cutout'] = {
-                    'value': f"${curr:.2f}",
-                    'delta': f"{wow:+.2f}",
-                    'signal': 'bull' if wow > 0 else ('bear' if wow < 0 else 'neut'),
-                    'note': '$/cwt vs last reading',
-                }
-        if 'Choice' in cutout_by_attr and 'Select' in cutout_by_attr:
-            choice_curr = cutout_by_attr['Choice'][0]
-            select_curr = cutout_by_attr['Select'][0]
-            choice_prev = cutout_by_attr['Choice'][1] if len(cutout_by_attr['Choice']) > 1 else choice_curr
-            select_prev = cutout_by_attr['Select'][1] if len(cutout_by_attr['Select']) > 1 else select_curr
-            spread_curr = choice_curr - select_curr
-            spread_prev = choice_prev - select_prev
-            wow = spread_curr - spread_prev
-            kpis['spread'] = {
-                'value': f"${spread_curr:.2f}",
-                'delta': f"+{wow:.2f} widening" if wow > 0 else f"{abs(wow):.2f} narrowing",
-                'signal': 'bull' if wow > 0 else ('bear' if wow < 0 else 'neut'),
-                'note': 'Choice/Select spread',
-            }
-    except Exception:
-        pass
-
-    try:
-        if len(cash_rows) >= 2:
-            curr = cash_rows[0]['weighted_avg_price']
-            prev = cash_rows[1]['weighted_avg_price']
-            if curr and prev and prev > 0:
-                wow = curr - prev
-                kpis['cash_price'] = {
-                    'value': f"${curr:.2f}",
-                    'delta': f"{wow:+.2f}",
-                    'signal': 'bull' if wow > 0 else ('bear' if wow < 0 else 'neut'),
-                    'note': '$/cwt vs prev day',
-                }
-    except Exception:
-        pass
-
-    return kpis
-
-
-def _compute_slaughter_kpis(slaughter_rows, carcass_rows):
-    """WoW KPIs for slaughter module."""
-    kpis = {}
-    try:
-        by_commodity = {}
-        for row in slaughter_rows:
-            by_commodity.setdefault(row['commodity'], []).append(row['total'])
-        for commodity in ['Cattle', 'Hogs']:
-            if commodity in by_commodity and len(by_commodity[commodity]) >= 2:
-                curr, prev = by_commodity[commodity][0], by_commodity[commodity][1]
-                wow = (curr - prev) / prev * 100 if prev > 0 else 0
-                key = commodity.lower()
+                is_cattle = 'attle' in str(commodity)
+                key = 'cattle' if is_cattle else 'hogs'
+                label = '🐄 Cattle Slaughter' if is_cattle else '🐷 Hog Slaughter'
                 kpis[key] = {
-                    'value': f"{curr:,.0f}",
-                    'delta': f"{wow:+.1f}%",
+                    'value': f"{curr:,.0f} head",
+                    'delta': f"{wow:+.1f}% vs last week",
                     'signal': 'bear' if wow > 2 else ('bull' if wow < -2 else 'neut'),
-                    'note': 'head WoW',
+                    'note': label,
                 }
     except Exception:
         pass
@@ -225,9 +218,9 @@ def _compute_slaughter_kpis(slaughter_rows, carcass_rows):
                 delta = curr - prev
                 kpis['carcass'] = {
                     'value': f"{curr:.1f} lbs",
-                    'delta': f"{delta:+.1f} lbs",
+                    'delta': f"{delta:+.1f} lbs vs last week",
                     'signal': 'bear' if delta > 2 else ('bull' if delta < -2 else 'neut'),
-                    'note': 'avg carcass weight WoW',
+                    'note': '⚖ Avg Carcass Weight',
                 }
     except Exception:
         pass
@@ -381,6 +374,11 @@ def slaughter(request):
     slaughter_df = dl.get_slaughter_all()
     carcass_df = dl.get_carcass_weights()
     cow_df = dl.get_cow_harvest()
+    harvest_usda_df = dl.get_harvest_usda()
+    print('HARVEST USDA SHAPE:', harvest_usda_df.shape)
+    print('HARVEST USDA COLS:', harvest_usda_df.columns.tolist())
+    print('HARVEST USDA SAMPLE:', harvest_usda_df.head(2).to_dict())
+    print('HOG CARCASS CHART:', _safe_chart(cb.chart_hog_carcass_weights, harvest_usda_df)[:200])
     summary = _rich_slaughter_summary(slaughter_df, carcass_df)
     # Separate cattle and hog insights
     cattle_summary = {k: v for k, v in summary.items() if True}
@@ -395,9 +393,9 @@ def slaughter(request):
         'data': [r for r in summary.get('slaughter', []) if r.get('commodity') == 'Hogs'],
     })
     insight = insight_cattle  # default for combined
-    # KPI cards
+    # KPI cards — use dashboard KPI query which has slaughter + week_ago
     try:
-        kpi_rows = dl.get_slaughter_kpis().to_dict(orient='records')
+        kpi_rows = dl.get_dashboard_kpis().to_dict(orient='records')
         carcass_rows = dl.get_carcass_kpis().to_dict(orient='records')
         kpis = _compute_slaughter_kpis(kpi_rows, carcass_rows)
     except Exception:
@@ -406,15 +404,15 @@ def slaughter(request):
     charts = {
         'slaughter_seasonal_cattle':  _safe_chart(cb.chart_slaughter_seasonal, slaughter_df, 'Cattle'),
         'slaughter_seasonal_hogs':    _safe_chart(cb.chart_slaughter_seasonal, slaughter_df, 'Hogs', cb.BLUE),
-        'slaughter_yoy_cattle':       _safe_chart(cb.chart_slaughter_yoy_pct, slaughter_df, 'Cattle'),
-        'slaughter_yoy_hogs':         _safe_chart(cb.chart_slaughter_yoy_pct, slaughter_df, 'Hogs'),
-        'hogs_vs_cattle':             _safe_chart(cb.chart_hogs_vs_cattle, slaughter_df),
         'cow_slaughter':              _safe_chart(cb.chart_cow_slaughter, cow_df),
         'ytd_cattle':                 _safe_chart(cb.chart_ytd_slaughter, slaughter_df, 'Cattle'),
         'ytd_hogs':                   _safe_chart(cb.chart_ytd_slaughter, slaughter_df, 'Hogs'),
         'implied_beef':               _safe_chart(cb.chart_implied_production, slaughter_df, carcass_df, 'Cattle'),
         'implied_pork':               _safe_chart(cb.chart_implied_production, slaughter_df, carcass_df, 'Hogs'),
         'carcass_weights':            _safe_chart(cb.chart_carcass_weights, carcass_df),
+        'hog_slaughter_seasonal':     _safe_chart(cb.chart_hog_slaughter_seasonal, slaughter_df),
+        'hog_carcass_weights':        _safe_chart(cb.chart_hog_carcass_weights, harvest_usda_df),
+        'implied_pork_v2':            _safe_chart(cb.chart_implied_pork_production, slaughter_df, harvest_usda_df),
     }
     return render(request, 'slaughter.html', {
         'charts': {k: v for k, v in charts.items()},
@@ -546,6 +544,52 @@ def wasde(request):
 
 
 
+
+
+@require_GET
+def api_dashboard_chart(request, chart_id):
+    """Return dashboard chart JSON for a given period."""
+    period = request.GET.get('period', 'year')
+    try:
+        chart = _get_dashboard_chart(chart_id, period)
+        return JsonResponse({'chart': chart})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def _get_dashboard_chart(chart_id, period):
+    import json as j
+    def _slice(df, col):
+        df = df.copy()
+        df[col] = pd.to_datetime(df[col], errors='coerce')
+        mx = df[col].max()
+        if period == 'week':
+            cutoff = mx - pd.Timedelta(weeks=6)
+        elif period == 'month':
+            cutoff = mx - pd.Timedelta(weeks=13)
+        else:
+            cutoff = mx - pd.Timedelta(weeks=54)
+        return df[df[col] >= cutoff]
+
+    if chart_id == 'cattle_slaughter':
+        df = _slice(dl.get_cattle_slaughter_weekly(), 'slaughter_date')
+        return j.loads(j.dumps(cb.chart_dash_slaughter(df, 'Cattle', period)))
+    elif chart_id == 'hog_slaughter':
+        df = _slice(dl.get_hog_slaughter_weekly(), 'slaughter_date')
+        return j.loads(j.dumps(cb.chart_dash_slaughter(df, 'Hogs', period)))
+    elif chart_id == 'cattle_cash':
+        df = _slice(dl.get_cattle_cash_price(), 'report_date')
+        return j.loads(j.dumps(cb.chart_dash_cattle_cash(df)))
+    elif chart_id == 'beef_cutout':
+        df = _slice(dl.get_beef_cutout_dashboard(), 'report_date')
+        return j.loads(j.dumps(cb.chart_dash_beef_cutout(df)))
+    elif chart_id == 'pork_regional':
+        df = _slice(dl.get_pork_regional_prices(), 'report_date')
+        return j.loads(j.dumps(cb.chart_dash_pork_regional(df)))
+    elif chart_id == 'pork_cutout':
+        df = _slice(dl.get_pork_cutout_dashboard(), 'report_date')
+        return j.loads(j.dumps(cb.chart_dash_pork_cutout(df)))
+    return {}
 
 # ── API: CHART PERIOD TOGGLE ───────────────────────────────────────────────────
 
