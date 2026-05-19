@@ -54,11 +54,11 @@
           <div class="why-label">How is cattle supply trending?</div>
           <div class="chart-title">Cattle Slaughter</div>
         </div>
-        <div class="period-bar">
+        <!-- <div class="period-bar">
           <button class="period-btn active" onclick="switchDashChart('cattle_slaughter','week',this)">W</button>
           <button class="period-btn" onclick="switchDashChart('cattle_slaughter','month',this)">M</button>
           <button class="period-btn" onclick="switchDashChart('cattle_slaughter','year',this)">Y</button>
-        </div>
+        </div> -->
       </div>
       <div id="cattle_slaughter" class="chart-plot"></div>
     </div>
@@ -102,11 +102,11 @@
           <div class="why-label">How is hog supply trending?</div>
           <div class="chart-title">Hog Slaughter</div>
         </div>
-        <div class="period-bar">
+        <!-- <div class="period-bar">
           <button class="period-btn active" onclick="switchDashChart('hog_slaughter','week',this)">W</button>
           <button class="period-btn" onclick="switchDashChart('hog_slaughter','month',this)">M</button>
           <button class="period-btn" onclick="switchDashChart('hog_slaughter','year',this)">Y</button>
-        </div>
+        </div> -->
       </div>
       <div id="hog_slaughter" class="chart-plot"></div>
     </div>
@@ -223,10 +223,15 @@
 {% block scripts %}
 <script>
 const CHARTS = {{ charts|safe }};
-Object.entries(CHARTS).forEach(([id, json]) => renderChart(id, json));
+
+window.addEventListener('load', () => {
+  Object.entries(CHARTS).forEach(([id, chartJson]) => {
+    const el = document.getElementById(id);
+    if (el) renderChart(id, typeof chartJson === 'string' ? JSON.parse(chartJson) : chartJson);
+  });
+});
 
 async function switchDashChart(chartId, period, btn) {
-  // Update button state within this chart's period-bar
   const bar = btn.closest('.period-bar');
   if (bar) bar.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');

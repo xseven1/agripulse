@@ -93,27 +93,31 @@ def dashboard(request):
 
     kpis = _compute_dashboard_kpis(kpi_slaughter, kpi_cutout, kpi_cash)
 
-    # Dashboard charts
     charts = {}
     try:
-        slaughter_df = dl.get_slaughter_all()
-        cow_df = dl.get_cow_harvest()
-        cutout_df = dl.get_cutout_all()
-        primal_df = dl.get_cattle_primals()
-        cash_df = dl.get_cash_cattle_all()
-        futures_df = dl.get_futures_endpoint_all()
-        charts = {
-            'slaughter_sparkline': json.dumps(cb.chart_dashboard_slaughter_sparkline(slaughter_df)),
-            'species_mix':         json.dumps(cb.chart_dashboard_species_mix(slaughter_df)),
-            'cow_donut':           json.dumps(cb.chart_dashboard_cow_donut(cow_df)),
-            'cutout_sparkline':    json.dumps(cb.chart_dashboard_cutout_sparkline(cutout_df)),
-            'primal_heatmap':      json.dumps(cb.chart_dashboard_primal_heatmap(primal_df)),
-            'cutout_vs_avg':       json.dumps(cb.chart_dashboard_cutout_vs_avg(cutout_df)),
-            'cash_futures_spark':  json.dumps(cb.chart_dashboard_cash_futures_sparkline(cash_df, futures_df)),
-            'basis_gauge':         json.dumps(cb.chart_dashboard_basis_gauge(cash_df, futures_df)),
-        }
+        cattle_sl = dl.get_cattle_slaughter_weekly()
+        hog_sl = dl.get_hog_slaughter_weekly()
+        charts['cattle_slaughter'] = json.dumps(cb.chart_dash_slaughter(cattle_sl, 'Cattle', 'week'))
+        charts['hog_slaughter']    = json.dumps(cb.chart_dash_slaughter(hog_sl, 'Hogs', 'week'))
     except Exception as e:
-        charts = {}
+        print('SLAUGHTER CHART ERROR:', e)
+
+    try:
+        charts['cattle_cash'] = json.dumps(cb.chart_dash_cattle_cash(dl.get_cattle_cash_price()))
+    except Exception as e:
+        print('CATTLE CASH ERROR:', e)
+
+    try:
+        charts['pork_regional'] = json.dumps(cb.chart_dash_pork_regional(dl.get_pork_regional_prices()))
+    except Exception as e:
+        print('PORK REGIONAL ERROR:', e)
+
+    try:
+        feed_df = dl.get_feed_futures_dashboard()
+        charts['corn_futures'] = json.dumps(cb.chart_dash_feed_futures(feed_df, 'corn'))
+        charts['soy_futures']  = json.dumps(cb.chart_dash_feed_futures(feed_df, 'soy'))
+    except Exception as e:
+        print('FEED FUTURES ERROR:', e)
 
     try:
         cross_signal = ai.generate_cross_signal_insight({})

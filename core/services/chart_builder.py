@@ -1196,7 +1196,7 @@ def _agg_slaughter(df, period='week'):
             year_ago=('year_ago', 'sum'),
         ).reset_index().rename(columns={'monday': 'date'})
         grp = _drop_partial(grp, 'slaughter')
-        tick_fmt = '%b %d'
+        tick_fmt = '%b %y'
     elif period == 'month':
         df['month'] = df['slaughter_date'].dt.to_period('M').apply(lambda r: r.start_time)
         grp = df.groupby('month').agg(
@@ -1230,14 +1230,14 @@ def chart_dash_slaughter(df, commodity='Cattle', period='week', height=260):
         connectgaps=False,
         hovertemplate='%{x}<br>%{y:,.0f} head<extra>This Period</extra>',
     ))
-    if grp['year_ago'].notna().any():
-        fig.add_trace(go.Scatter(
-            x=grp['date'], y=grp['year_ago'],
-            mode='lines', name='Year Ago',
-            line=dict(color=MUTED, width=1.5, dash='dash'),
-            connectgaps=False,
-            hovertemplate='%{y:,.0f} head<extra>Year Ago</extra>',
-        ))
+    # if grp['year_ago'].notna().any():
+    #     fig.add_trace(go.Scatter(
+    #         x=grp['date'], y=grp['year_ago'],
+    #         mode='lines', name='Year Ago',
+    #         line=dict(color=MUTED, width=1.5, dash='dash'),
+    #         connectgaps=False,
+    #         hovertemplate='%{y:,.0f} head<extra>Year Ago</extra>',
+    #     ))
     fig.update_layout(**_L(height=height))
     fig.update_xaxes(tickformat=tick_fmt, tickfont=dict(color=SUB, size=10))
     fig.update_yaxes(tickformat=',.0f', title_text='Head')
@@ -1356,25 +1356,31 @@ def chart_dash_pork_cutout(df, height=260):
 
 
 def chart_dash_feed_futures(df, commodity='corn', height=240):
-    """Corn or soy futures — all contracts on one chart."""
+    """Corn or soy front month futures — single line."""
     df = df.copy()
     df['trade_date'] = pd.to_datetime(df['trade_date'], errors='coerce')
     sub = df[df['commodity'] == commodity].sort_values('trade_date')
+
+    # Keep only the front month (most recently expiring contract)
+    latest_date = sub['trade_date'].max()
+    active = sub[sub['trade_date'] == latest_date]
+    if active.empty:
+        return to_json(go.Figure())
+    front_symbol = active.iloc[0]['symbol']
+    front = sub[sub['symbol'] == front_symbol].sort_values('trade_date')
+
     color = GOLD if commodity == 'corn' else GREEN
-    colors_list = [color, BLUE, PURPLE, ORANGE, TEAL, RED]
+    label = 'Corn' if commodity == 'corn' else 'Soybeans'
 
     fig = go.Figure()
-    for i, (symbol, grp) in enumerate(sub.groupby('symbol')):
-        contract = grp['contract_month'].iloc[0]
-        grp = grp.sort_values('trade_date')
-        fig.add_trace(go.Scatter(
-            x=grp['trade_date'], y=grp['close_price'],
-            mode='lines', name=f'{symbol} ({contract})',
-            line=dict(color=colors_list[i % len(colors_list)], width=1.8),
-            connectgaps=False,
-            hovertemplate=f'{symbol}: $%{{y:.4f}}<extra></extra>',
-        ))
-    label = 'Corn' if commodity == 'corn' else 'Soybeans'
+    fig.add_trace(go.Scatter(
+        x=front['trade_date'], y=front['close_price'],
+        mode='lines', name=front_symbol,
+        line=dict(color=color, width=2.5),
+        fill='tozeroy', fillcolor='rgba(184,115,10,0.06)' if commodity == 'corn' else 'rgba(26,110,60,0.06)',
+        connectgaps=False,
+        hovertemplate='%{x|%b %d}<br>$%{y:.2f}/bu<extra>' + label + '</extra>',
+    ))
     fig.update_layout(**_L(height=height))
     fig.update_xaxes(tickformat='%b %y', tickfont=dict(color=SUB, size=10))
     fig.update_yaxes(tickprefix='$', title_text=f'{label} ($/bu)')
@@ -1465,12 +1471,12 @@ def chart_implied_pork_production(slaughter_df, harvest_usda_df, height=320):
     merged['roll'] = merged['implied_lbs'].rolling(4, min_periods=1).mean()
 
     fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=merged['week'], y=merged['implied_lbs'],
-        name='Weekly Production',
-        marker_color=BLUE, marker_line_width=0,
-        hovertemplate='%{x|%b %d}: %{y:,.0f} lbs<extra></extra>',
-    ))
+    # fig.add_trace(go.Bar(
+    #     x=merged['week'], y=merged['implied_lbs'],
+    #     name='Weekly Production',
+    #     marker_color=BLUE, marker_line_width=0,
+    #     hovertemplate='%{x|%b %d}: %{y:,.0f} lbs<extra></extra>',
+    # ))
     fig.add_trace(go.Scatter(
         x=merged['week'], y=merged['roll'],
         mode='lines', name='4-wk Avg',
