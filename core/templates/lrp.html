@@ -24,7 +24,6 @@
 <div class="two-col">
   {% with why="How does LRP floor compare to current futures?" title="LRP Coverage Price vs. Futures — By Endorsement Length" desc="Each line = one endorsement length. Red dashed line = current futures price. Coverage lines above the futures line = LRP floor exceeds futures — meaningful downside protection." chart_id="lrp_coverage_vs_futures" %}
   {% include '_chart_card.html' %}{% endwith %}
-
   {% with why="What does the government subsidy actually save producers?" title="Producer Premium vs. USDA Subsidy — By Coverage Level" desc="Gold = what producer pays per head. Green = USDA subsidy. Stacked = total premium cost. The subsidy makes higher coverage levels far cheaper than private puts." chart_id="lrp_subsidy" %}
   {% include '_chart_card.html' %}{% endwith %}
 </div>
@@ -33,8 +32,13 @@
 <div class="two-col">
   {% with why="What does LRP cost per head at each coverage level?" title="Producer Premium per Head — By Coverage Level &amp; Length" desc="Cost after USDA subsidy. Each line = one endorsement length. Shows how premium rises steeply above 95% coverage and how longer endorsements cost more for the same level." chart_id="lrp_premium_curve" %}
   {% include '_chart_card.html' %}{% endwith %}
-
   {% with why="Does LRP actually beat a straight futures hedge?" title="LRP Net Floor vs. Futures Price — By Coverage Level" desc="Net floor = coverage price minus premium. Green = LRP floor exceeds futures price (LRP wins). Red = futures price higher (futures hedge wins). Shows the coverage level where LRP becomes the better tool." chart_id="lrp_net_floor" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
+<div class="section-label">LRP vs. CME Put Option — Direct Cost Comparison</div>
+<div class="width-100%">
+  {% with why="Is LRP cheaper than buying an equivalent CME put?" title="LRP Producer Cost vs. CME Put Premium — By Coverage Level" desc="Gold = LRP cost after USDA subsidy ($/cwt). Blue = equivalent CME put option premium at the same strike. When gold bars are lower than blue, LRP is the cheaper form of protection. The subsidy is what tilts the comparison." chart_id="lrp_vs_put" %}
   {% include '_chart_card.html' %}{% endwith %}
 </div>
 
@@ -43,6 +47,8 @@
 {% block scripts %}
 <script>
 const CHARTS = {{ charts|safe }};
-Object.keys(CHARTS).forEach(id => { renderChart(id, CHARTS[id]); initChartAI(id); });
+window.addEventListener('load', () => {
+  Object.keys(CHARTS).forEach(id => { renderChart(id, CHARTS[id]); initChartAI(id); });
+});
 </script>
 {% endblock %}

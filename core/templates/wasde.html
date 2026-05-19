@@ -1,47 +1,55 @@
 {% extends 'base.html' %}
-{% block title %}— WASDE Digest{% endblock %}
+{% block title %}— WASDE Impact{% endblock %}
 {% block content %}
 <div class="page-header">
   <h1>WASDE Impact Digest</h1>
-  <p>What did the USDA change this month? Which revisions are market-moving?</p>
+  <p>How have USDA production forecasts shifted month by month? What do the latest revisions signal for supply?</p>
 </div>
 
-{% include "_kpi_row.html" %}
+{% include '_kpi_row.html' %}
 
 <div class="module-insight">
-  <div class="insight-label">🤖 AI Module Insight</div>
+  <div class="insight-label">🤖 AI Market Insight</div>
   <div class="insight-text">{{ insight|linebreaksbr }}</div>
 </div>
 
-<div class="section-label">Production Forecasts — Revision Tracking</div>
+<div class="section-label">Monthly Production Forecasts — Beef &amp; Pork</div>
 <div class="two-col">
-  {% with why="Is USDA revising beef production up or down?" title="Beef Production Forecast — By Market Year" desc="Each line = one marketing year. Shows how USDA's beef production forecast has changed across consecutive WASDE reports. Downward revisions = tightening supply = bullish for prices." chart_id="wasde_production_beef" %}
+  {% with why="How has the beef production forecast changed each month?" title="Beef Production Forecast — Month by Month" desc="Each line = one market year. Each point = one WASDE report. Rising line = USDA upgrading beef supply outlook. Falling = cutting." chart_id="wasde_monthly_beef" %}
   {% include '_chart_card.html' %}{% endwith %}
-
-  {% with why="Is USDA revising pork production up or down?" title="Pork Production Forecast — By Market Year" desc="Pork production revisions across consecutive WASDE reports. Compare direction and magnitude to beef revisions to understand relative supply pressure between species." chart_id="wasde_production_pork" %}
-  {% include '_chart_card.html' %}{% endwith %}
-</div>
-
-<div class="section-label">Largest Revisions This Cycle</div>
-<div class="solo-center">
-  {% with why="Which revision matters most this month?" title="Largest WASDE Revisions vs. Prior Report" desc="Green = upward revision. Red = downward. Sorted by magnitude. Supply-side downward revisions and demand-side upward revisions are both bullish. This chart shows where the USDA changed its mind the most." chart_id="wasde_revisions" %}
+  {% with why="How has the pork production forecast changed each month?" title="Pork Production Forecast — Month by Month" desc="Each line = one market year. Shows how USDA's pork supply outlook has evolved through the year. Compare slope to beef to see which protein is being revised more aggressively." chart_id="wasde_monthly_pork" %}
   {% include '_chart_card.html' %}{% endwith %}
 </div>
 
-<div class="section-label">Price Forecasts & Supply/Demand Balance</div>
+<div class="section-label">Beef vs Pork &amp; Grain Forecasts</div>
 <div class="two-col">
-  {% with why="What is USDA forecasting for cattle and hog prices?" title="WASDE Price Forecasts — Steers &amp; Barrows/Gilts" desc="USDA's official price forecasts across report dates. Rising forecasts = USDA becoming more bullish. Compare to current cash market levels to see if the market is running ahead of or behind USDA expectations." chart_id="wasde_price_forecasts" %}
+  {% with why="Is beef or pork supply being revised more?" title="Beef vs Pork Production — Latest Market Year" desc="Both species on one chart for the current market year. Diverging lines = one protein being revised up while the other is cut — key for relative price dynamics." chart_id="wasde_beef_pork_compare" %}
   {% include '_chart_card.html' %}{% endwith %}
-
-  {% with why="Is supply or demand being revised more aggressively?" title="Beef Supply vs. Demand Attributes — Across Reports" desc="Gold/orange lines = supply-side attributes (production, total supply). Blue/teal lines = demand-side (total use, exports). Tightening spread between supply and demand = bullish price signal." chart_id="wasde_supply_demand" %}
+  {% with why="What are the latest WASDE price forecasts?" title="Steer &amp; Hog Price Forecasts — Across WASDE Dates" desc="USDA price forecasts for cattle and hogs by report date. Rising = USDA expects tighter supply or stronger demand going forward." chart_id="wasde_price_forecasts" %}
   {% include '_chart_card.html' %}{% endwith %}
 </div>
+
+<div class="section-label">Feed Grain Forecasts — Corn &amp; Soybeans</div>
+<div class="two-col">
+  {% with why="How has the corn production forecast shifted?" title="Corn Production Forecast — Month by Month" desc="USDA corn production forecast by market year. Rising revisions = more feed available, bearish for feed costs. Cuts = tighter supply, bullish for feed costs." chart_id="wasde_monthly_corn" %}
+  {% include '_chart_card.html' %}{% endwith %}
+  {% with why="How has the soybean production forecast shifted?" title="Soybean Production Forecast — Month by Month" desc="USDA soybean production forecast by market year. Key for meal prices and hog/poultry feed costs. Watch divergence from corn for protein meal implications." chart_id="wasde_monthly_soy" %}
+  {% include '_chart_card.html' %}{% endwith %}
+</div>
+
 
 <p class="page-footer">AgriPulse · USDA WASDE Data · Track 1</p>
 {% endblock %}
+
 {% block scripts %}
 <script>
 const CHARTS = {{ charts|safe }};
-Object.keys(CHARTS).forEach(id => { renderChart(id, CHARTS[id]); initChartAI(id); });
+
+window.addEventListener('load', () => {
+  Object.keys(CHARTS).forEach(id => {
+    renderChart(id, CHARTS[id]);
+    initChartAI(id);
+  });
+});
 </script>
 {% endblock %}

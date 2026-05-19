@@ -330,20 +330,15 @@ def get_lrp_kpis():
 
 
 def get_wasde_kpis():
-    """Latest WASDE values for KPI cards."""
     return query_to_df("""
-        WITH ranked AS (
-            SELECT commodity, attribute, value, report_date, market_year,
-                   ROW_NUMBER() OVER (PARTITION BY commodity, attribute ORDER BY report_date DESC) as rn
-            FROM wasde_reports
-            WHERE commodity IN ('Beef', 'Pork')
-              AND attribute = 'Production' AND value IS NOT NULL
-        )
         SELECT commodity, attribute, value, report_date, market_year
-        FROM ranked WHERE rn <= 2
-        ORDER BY commodity, report_date DESC
+        FROM wasde_reports
+        WHERE commodity IN ('Beef', 'Pork')
+          AND attribute = 'Production'
+          AND value > 20000
+        ORDER BY report_date DESC
+        LIMIT 20
     """)
-
 
 # ── COMPARABLE WEEK FINDER ─────────────────────────────────────────────────────
 

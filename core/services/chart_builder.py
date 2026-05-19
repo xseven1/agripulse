@@ -1740,3 +1740,130 @@ def chart_he_futures_curve(futures_df, height=290):
     fig.update_layout(**_L(height=height, yprefix='$'))
     fig.update_xaxes(title_text='Contract Month', color=SUB, title_font=dict(size=10))
     return to_json(fig)
+
+def chart_lrp_vs_put(lrp_df, commodity='LIVE CATTLE', height=310):
+    """LRP producer premium vs equivalent CME put option — direct cost comparison."""
+    df = lrp_df[lrp_df['commodity'] == commodity].dropna(
+        subset=['coverage_level_percent', 'per_cwt_premium', 'cme_premium']).copy()
+
+    lengths = sorted(df['endorsement_length'].dropna().unique())
+    mid_length = lengths[len(lengths) // 2] if lengths else None
+    if mid_length:
+        df = df[df['endorsement_length'] == mid_length]
+
+    df = df.groupby('coverage_level_percent').agg(
+        lrp_cost=('per_cwt_premium', 'median'),
+        cme_cost=('cme_premium', 'median'),
+    ).reset_index()
+    df['coverage_pct'] = df['coverage_level_percent'] * 100
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=df['coverage_pct'], y=df['cme_cost'],
+        name='CME Put Premium', marker_color=BLUE, marker_line_width=0,
+        hovertemplate='Coverage: %{x:.0f}%<br>CME Put: $%{y:.2f}/cwt<extra></extra>',
+    ))
+    fig.add_trace(go.Bar(
+        x=df['coverage_pct'], y=df['lrp_cost'],
+        name='LRP Producer Cost (after subsidy)', marker_color=GOLD, marker_line_width=0,
+        hovertemplate='Coverage: %{x:.0f}%<br>LRP: $%{y:.2f}/cwt<extra></extra>',
+    ))
+    fig.update_layout(**_L(height=height, yprefix='$', barmode='group'))
+    fig.update_xaxes(title_text='Coverage Level %', ticksuffix='%', color=SUB)
+    fig.update_yaxes(title_text='$/cwt premium cost')
+    return to_json(fig)
+
+
+def chart_wasde_monthly_production(wasde_df, commodity='Beef', height=310):
+    """Monthly WASDE production forecast revisions."""
+    df = wasde_df.copy()
+    df['report_date'] = pd.to_datetime(df['report_date'], errors='coerce')
+    filtered = df[
+        (df['commodity'] == commodity) &
+        (df['attribute'] == 'Production') &
+        (df['unit'] == 'Million Pounds') &
+        (df['value'] > 20000)
+    ].dropna(subset=['value', 'market_year'])
+
+    colors = [GOLD, BLUE, GREEN, PURPLE, ORANGE]
+    fig = go.Figure()
+    market_years = sorted(filtered['market_year'].dropna().unique())[-3:]
+    for i, my in enumerate(market_years):
+        grp = filtered[filtered['market_year'] == my].sort_values('report_date')
+        grp = grp.groupby('report_date')['value'].mean().reset_index()
+        fig.add_trace(go.Scatter(
+            x=grp['report_date'], y=grp['value'],
+            name=f'MY {my}',
+            mode='lines+markers',
+            line=dict(color=colors[i % len(colors)], width=2),
+            marker=dict(size=8),
+            hovertemplate='%{x|%b %Y}<br>%{y:,.0f}M lbs<extra>MY ' + str(my) + '</extra>',
+        ))
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(title_text='WASDE Report Date', color=SUB, tickformat='%b %Y')
+    fig.update_yaxes(tickformat=',.0f', title_text='Million Lbs')
+    return to_json(fig)
+
+
+def chart_wasde_beef_pork_comparison(wasde_df, height=310):
+    """Beef vs Pork production forecast — latest market year, month by month."""
+    df = wasde_df.copy()
+    df['report_date'] = pd.to_datetime(df['report_date'], errors='coerce')
+    filtered = df[
+        (df['commodity'].isin(['Beef', 'Pork'])) &
+        (df['attribute'] == 'Production') &
+        (df['unit'] == 'Million Pounds') &
+        (df['value'] > 20000)
+    ].dropna(subset=['value', 'market_year'])
+
+    latest_my = filtered['market_year'].max()
+    curr = filtered[filtered['market_year'] == latest_my].sort_values('report_date')
+
+    fig = go.Figure()
+    for commodity, color in [('Beef', GOLD), ('Pork', BLUE)]:
+        sub = curr[curr['commodity'] == commodity]
+        sub = sub.groupby('report_date')['value'].mean().reset_index()
+        fig.add_trace(go.Scatter(
+            x=sub['report_date'], y=sub['value'],
+            name=commodity,
+            mode='lines+markers',
+            line=dict(color=color, width=2.5),
+            marker=dict(size=8),
+            hovertemplate=f'{commodity}: %{{y:,.0f}}M lbs<extra>MY {latest_my}</extra>',
+        ))
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(title_text='WASDE Report Date', color=SUB, tickformat='%b %Y')
+    fig.update_yaxes(tickformat=',.0f', title_text='Million Lbs')
+    return to_json(fig)
+
+
+def chart_wasde_grain_monthly(wasde_df, commodity='Corn', height=310):
+    """Corn or Soy production forecast — month by month per market year."""
+    df = wasde_df.copy()
+    df['report_date'] = pd.to_datetime(df['report_date'], errors='coerce')
+    commodity_map = {'Corn': 'Corn', 'Soybeans': 'Oilseed, Soybean'}
+    db_commodity = commodity_map.get(commodity, commodity)
+    filtered = df[
+        (df['commodity'] == db_commodity) &
+        (df['attribute'] == 'Production')
+    ].dropna(subset=['value', 'market_year'])
+    filtered = filtered[filtered['value'] > 1000]
+
+    colors = [GOLD, BLUE, GREEN, PURPLE, ORANGE]
+    fig = go.Figure()
+    market_years = sorted(filtered['market_year'].dropna().unique())[-3:]
+    for i, my in enumerate(market_years):
+        grp = filtered[filtered['market_year'] == my].sort_values('report_date')
+        grp = grp.groupby('report_date')['value'].mean().reset_index()
+        fig.add_trace(go.Scatter(
+            x=grp['report_date'], y=grp['value'],
+            name=f'MY {my}',
+            mode='lines+markers',
+            line=dict(color=colors[i % len(colors)], width=2),
+            marker=dict(size=8),
+            hovertemplate='%{x|%b %Y}<br>%{y:,.0f}M bu<extra>MY ' + str(my) + '</extra>',
+        ))
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(title_text='WASDE Report Date', color=SUB, tickformat='%b %Y')
+    fig.update_yaxes(tickformat=',.0f', title_text='Million Bushels')
+    return to_json(fig)

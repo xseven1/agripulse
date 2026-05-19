@@ -427,8 +427,12 @@ def _compute_wasde_kpis(wasde_rows):
     """KPIs for WASDE module."""
     kpis = {}
     try:
+        # Filter to annual production forecasts only (value > 20000 = annual total in mil lbs)
+        prod_rows = [r for r in wasde_rows if
+                     r.get('attribute') == 'Production' and
+                     r.get('value') and r['value'] > 20000]
         by_commodity = {}
-        for row in wasde_rows:
+        for row in prod_rows:
             by_commodity.setdefault(row['commodity'], []).append(row['value'])
         for commodity in ['Beef', 'Pork']:
             if commodity in by_commodity and len(by_commodity[commodity]) >= 2:
@@ -438,7 +442,7 @@ def _compute_wasde_kpis(wasde_rows):
                     'value': f"{curr:,.0f}M lbs",
                     'delta': f"{delta:+,.0f} vs prior report",
                     'signal': 'bear' if delta > 0 else ('bull' if delta < 0 else 'neut'),
-                    'note': f'{commodity} production forecast',
+                    'note': f'🐄 {commodity} Production Forecast' if commodity == 'Beef' else f'🐷 {commodity} Production Forecast',
                 }
     except Exception:
         pass
@@ -588,6 +592,7 @@ def lrp(request):
         'lrp_premium_curve':       _safe_chart(cb.chart_lrp_premium_curve, lrp_df, commodity),
         'lrp_net_floor':           _safe_chart(cb.chart_lrp_net_floor, lrp_df, commodity),
         'lrp_subsidy':             _safe_chart(cb.chart_lrp_subsidy_value, lrp_df, commodity),
+        'lrp_vs_put':              _safe_chart(cb.chart_lrp_vs_put, lrp_df, commodity),
     }
     return render(request, 'lrp.html', {
         'charts': {k: v for k, v in charts.items()},
@@ -612,11 +617,16 @@ def wasde(request):
         kpis = {}
 
     charts = {
-        'wasde_production_beef': _safe_chart(cb.chart_wasde_production, wasde_df, 'Beef'),
-        'wasde_production_pork': _safe_chart(cb.chart_wasde_production, wasde_df, 'Pork'),
-        'wasde_revisions':       _safe_chart(cb.chart_wasde_revisions, wasde_df),
-        'wasde_price_forecasts': _safe_chart(cb.chart_wasde_price_forecasts, wasde_df),
-        'wasde_supply_demand':   _safe_chart(cb.chart_wasde_supply_demand, wasde_df, 'Beef'),
+        'wasde_production_beef':    _safe_chart(cb.chart_wasde_production, wasde_df, 'Beef'),
+        'wasde_production_pork':    _safe_chart(cb.chart_wasde_production, wasde_df, 'Pork'),
+        'wasde_revisions':          _safe_chart(cb.chart_wasde_revisions, wasde_df),
+        'wasde_price_forecasts':    _safe_chart(cb.chart_wasde_price_forecasts, wasde_df),
+        'wasde_supply_demand':      _safe_chart(cb.chart_wasde_supply_demand, wasde_df, 'Beef'),
+        'wasde_monthly_beef':       _safe_chart(cb.chart_wasde_monthly_production, wasde_df, 'Beef'),
+        'wasde_monthly_pork':       _safe_chart(cb.chart_wasde_monthly_production, wasde_df, 'Pork'),
+        'wasde_beef_pork_compare':  _safe_chart(cb.chart_wasde_beef_pork_comparison, wasde_df),
+        'wasde_monthly_corn':       _safe_chart(cb.chart_wasde_grain_monthly, wasde_df, 'Corn'),
+        'wasde_monthly_soy':        _safe_chart(cb.chart_wasde_grain_monthly, wasde_df, 'Soybeans'),
     }
     return render(request, 'wasde.html', {
         'charts': {k: v for k, v in charts.items()},
