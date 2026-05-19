@@ -529,12 +529,12 @@ def _prep_basis(cash_df, futures_df):
     """Merge cash cattle and LE futures into basis dataframe."""
     cc = cash_df.copy()
     cc['report_date'] = pd.to_datetime(cc['report_date'], errors='coerce')
-    cc = cc[(cc['class_description'] == 'ALL BEEF TYPE') &
-            (cc['selling_basis'] == 'LIVE DELIVERED') &
-            (cc['grade_description'] == 'Total all grades')].copy()
+    cc = cc[cc['class_description'] == 'ALL BEEF TYPE'].copy()
+    cc = cc[(cc['weighted_avg_price'] > 150) & (cc['weighted_avg_price'] < 350)]
     cc['week_start'] = cc['report_date'] - pd.to_timedelta(cc['report_date'].dt.weekday, unit='D')
     cc['Year'] = cc['report_date'].dt.year
-    cash = cc.groupby(['week_start', 'Year'])['weighted_avg_price'].mean().reset_index()
+    # Use median to suppress any flat/outlier grade rows
+    cash = cc.groupby(['week_start', 'Year'])['weighted_avg_price'].median().reset_index()
 
     ep = futures_df.copy()
     ep['trading_day'] = pd.to_datetime(ep['trading_day'], errors='coerce')
@@ -550,6 +550,8 @@ def _prep_basis(cash_df, futures_df):
     fut = nearby.groupby(['week_start', 'Year'])['close'].mean().reset_index()
 
     merged = cash.merge(fut, on=['week_start', 'Year'], how='inner')
+    merged = merged[(merged['close'] > 150) & (merged['weighted_avg_price'] > 150)]
+    merged = merged.sort_values('week_start')
     merged['basis'] = merged['weighted_avg_price'] - merged['close']
     merged['rolling_basis'] = merged['basis'].rolling(4, min_periods=1).mean()
     merged['doy'] = pd.to_datetime(merged['week_start']).dt.dayofyear
@@ -1619,4 +1621,122 @@ def chart_pork_yoy_pct(pork_df, cut='Carcass', height=280):
     fig.add_hline(y=0, line_color='rgba(100,100,100,0.3)', line_width=1)
     fig.update_layout(**_L(height=height, ysuffix='%'))
     fig.update_xaxes(title_text='Week of Year', color=SUB, title_font=dict(size=10))
+    return to_json(fig)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CASH vs FUTURES — HOG CHARTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _prep_hog_basis(cash_df, futures_df):
+    cc = cash_df.copy()
+    cc['report_date'] = pd.to_datetime(cc['report_date'], errors='coerce')
+    cc = cc[cc['name'] == 'National'].dropna(subset=['wtd_avg'])
+    cc['week_start'] = cc['report_date'] - pd.to_timedelta(cc['report_date'].dt.weekday, unit='D')
+    cc['Year'] = cc['report_date'].dt.year
+    cash = cc.groupby(['week_start', 'Year'])['wtd_avg'].mean().reset_index()
+    ep = futures_df.copy()
+    ep['trading_day'] = pd.to_datetime(ep['trading_day'], errors='coerce')
+    he = ep[ep['commodity'] == 'HE'].copy()
+    month_map = {'G': 2, 'J': 4, 'M': 6, 'N': 7, 'Q': 8, 'V': 10, 'Z': 12}
+    he['month_num'] = he['month'].map(month_map)
+    he = he.dropna(subset=['month_num'])
+    he['expiry_approx'] = pd.to_datetime(dict(year=he['year'], month=he['month_num'].astype(int), day=15))
+    he = he.sort_values(['trading_day', 'expiry_approx'])
+    nearby = he[he['expiry_approx'] >= he['trading_day']].groupby('trading_day').first().reset_index()
+    nearby['week_start'] = nearby['trading_day'] - pd.to_timedelta(nearby['trading_day'].dt.weekday, unit='D')
+    nearby['Year'] = nearby['trading_day'].dt.year
+    fut = nearby.groupby(['week_start', 'Year'])['close'].mean().reset_index()
+    merged = cash.merge(fut, on=['week_start', 'Year'], how='inner')
+    merged['basis'] = merged['wtd_avg'] - merged['close']
+    merged['rolling_basis'] = merged['basis'].rolling(4, min_periods=1).mean()
+    merged['doy'] = pd.to_datetime(merged['week_start']).dt.dayofyear
+    merged['iso_week'] = pd.to_datetime(merged['week_start']).apply(lambda x: x.isocalendar().week)
+    return merged.sort_values('week_start')
+
+
+def chart_hog_cash_vs_futures(cash_df, futures_df, height=310):
+    basis_df = _prep_hog_basis(cash_df, futures_df)
+    curr_yr = basis_df['Year'].max()
+    sub = _drop_partial(basis_df[basis_df['Year'] == curr_yr].sort_values('week_start').copy(), 'wtd_avg')
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=sub['doy'], y=sub['wtd_avg'],
+        mode='lines+markers', name='Cash (National)',
+        line=dict(color=GOLD, width=2.5), marker=dict(size=4),
+        connectgaps=False, hovertemplate='Cash: $%{y:.2f}<extra></extra>',
+    ))
+    fig.add_trace(go.Scatter(
+        x=sub['doy'], y=sub['close'],
+        mode='lines+markers', name='Nearby Futures (HE)',
+        line=dict(color=BLUE, width=2.5), marker=dict(size=4),
+        connectgaps=False, hovertemplate='Futures: $%{y:.2f}<extra></extra>',
+    ))
+    fig.update_layout(**_L(height=height, yprefix='$'))
+    fig.update_xaxes(**MON_TICKS)
+    return to_json(fig)
+
+
+def chart_hog_basis_rolling(cash_df, futures_df, height=290):
+    basis_df = _prep_hog_basis(cash_df, futures_df)
+    curr_yr = basis_df['Year'].max()
+    sub = _drop_partial(basis_df[basis_df['Year'] == curr_yr].sort_values('week_start').copy(), 'basis')
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=sub['doy'], y=sub['basis'],
+        marker_color=[GREEN if v >= 0 else RED for v in sub['basis']],
+        marker_line_width=0, name='Weekly basis',
+        hovertemplate='Basis: $%{y:.2f}<extra></extra>',
+    ))
+    fig.add_trace(go.Scatter(
+        x=sub['doy'], y=sub['rolling_basis'],
+        mode='lines', name='4-wk avg',
+        line=dict(color=GOLD, width=2),
+        connectgaps=False, hovertemplate='4-wk: $%{y:.2f}<extra></extra>',
+    ))
+    fig.add_hline(y=0, line_color='rgba(255,255,255,0.15)', line_width=1)
+    fig.update_layout(**_L(height=height, yprefix='$'))
+    fig.update_xaxes(**MON_TICKS)
+    return to_json(fig)
+
+
+def chart_hog_basis_by_month(cash_df, futures_df, height=280):
+    basis_df = _prep_hog_basis(cash_df, futures_df)
+    basis_df['month'] = pd.to_datetime(basis_df['week_start']).dt.month
+    month_names = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',
+                   7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'}
+    avg = basis_df.groupby('month')['basis'].mean().reset_index()
+    avg['month_name'] = avg['month'].map(month_names)
+    fig = go.Figure(go.Bar(
+        x=avg['month_name'], y=avg['basis'],
+        marker_color=[GREEN if v >= 0 else RED for v in avg['basis']],
+        marker_line_width=0,
+        hovertemplate='%{x}: $%{y:.2f}<extra></extra>',
+    ))
+    fig.add_hline(y=0, line_color='rgba(255,255,255,0.2)', line_width=1)
+    fig.update_layout(**_L(height=height, yprefix='$'))
+    return to_json(fig)
+
+
+def chart_he_futures_curve(futures_df, height=290):
+    ep = futures_df.copy()
+    ep['trading_day'] = pd.to_datetime(ep['trading_day'], errors='coerce')
+    he = ep[ep['commodity'] == 'HE'].copy()
+    latest = he['trading_day'].max()
+    curve = he[he['trading_day'] == latest].copy()
+    month_order = ['G','J','M','N','Q','V','Z']
+    month_names = {'G':'Feb','J':'Apr','M':'Jun','N':'Jul','Q':'Aug','V':'Oct','Z':'Dec'}
+    curve['m_num'] = curve['month'].apply(lambda m: month_order.index(m) if m in month_order else 99)
+    curve = curve.sort_values('m_num')
+    curve['label'] = curve['month'].map(month_names).fillna(curve['month']) + ' ' + curve['year'].astype(str)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=curve['label'], y=curve['close'],
+        mode='lines+markers',
+        line=dict(color=BLUE, width=2.5),
+        marker=dict(size=9, color=BLUE, line=dict(color='#111827', width=2)),
+        name='Lean Hog Futures',
+        hovertemplate='%{x}: $%{y:.2f}/cwt<extra></extra>',
+    ))
+    fig.update_layout(**_L(height=height, yprefix='$'))
+    fig.update_xaxes(title_text='Contract Month', color=SUB, title_font=dict(size=10))
     return to_json(fig)

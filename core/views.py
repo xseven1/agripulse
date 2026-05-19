@@ -315,44 +315,84 @@ def _compute_cutout_kpis(cutout_rows, primal_rows):
     return kpis
 
 def _compute_basis_kpis(cash_rows, futures_rows):
-    """WoW KPIs for cash/futures module."""
+    """KPIs for cash/futures module."""
     kpis = {}
+
+    # Cattle cash price
     try:
-        if len(cash_rows) >= 2:
-            curr = cash_rows[0]['weighted_avg_price']
-            prev = cash_rows[1]['weighted_avg_price']
+        valid = [r for r in cash_rows if r.get('weighted_avg_price') and 100 < r['weighted_avg_price'] < 400]
+        if len(valid) >= 2:
+            curr, prev = valid[0]['weighted_avg_price'], valid[1]['weighted_avg_price']
             delta = curr - prev
-            kpis['cash'] = {
+            kpis['cattle_cash'] = {
                 'value': f"${curr:.2f}",
-                'delta': f"{delta:+.2f}",
+                'delta': f"{delta:+.2f} vs prev week",
                 'signal': 'bull' if delta > 0 else ('bear' if delta < 0 else 'neut'),
-                'note': '$/cwt live WoW',
+                'note': '🐄 Cattle Cash Price ($/cwt)',
             }
     except Exception:
         pass
+
+    # Cattle basis
     try:
-        if len(futures_rows) >= 2:
-            curr = futures_rows[0]['close']
-            prev = futures_rows[1]['close']
-            delta = curr - prev
-            kpis['futures'] = {
-                'value': f"${curr:.2f}",
-                'delta': f"{delta:+.2f}",
-                'signal': 'bull' if delta > 0 else ('bear' if delta < 0 else 'neut'),
-                'note': 'LE nearby futures WoW',
-            }
-        if len(cash_rows) >= 1 and len(futures_rows) >= 1:
-            basis = cash_rows[0]['weighted_avg_price'] - futures_rows[0]['close']
-            kpis['basis'] = {
+        valid_cash = [r for r in cash_rows if r.get('weighted_avg_price') and 100 < r['weighted_avg_price'] < 400]
+        if futures_rows and valid_cash:
+            basis = valid_cash[0]['weighted_avg_price'] - futures_rows[0]['close']
+            kpis['cattle_basis'] = {
                 'value': f"${basis:.2f}",
                 'delta': 'cash above futures' if basis > 0 else 'cash below futures',
                 'signal': 'bull' if basis > 0 else 'bear',
-                'note': 'current basis',
+                'note': '🐄 Cattle Basis',
             }
     except Exception:
         pass
-    return kpis
 
+    # Hog cash price
+    try:
+        from core.services import data_loader as dl_inner
+        hog_cash = dl_inner.query_to_df("""
+            SELECT report_date, wtd_avg FROM nearby_futures
+            WHERE name = 'National' AND wtd_avg IS NOT NULL
+            ORDER BY report_date DESC LIMIT 5
+        """)
+        if len(hog_cash) >= 2:
+            curr = float(hog_cash.iloc[0]['wtd_avg'])
+            prev = float(hog_cash.iloc[1]['wtd_avg'])
+            delta = curr - prev
+            kpis['hog_cash'] = {
+                'value': f"${curr:.2f}",
+                'delta': f"{delta:+.2f} vs prev week",
+                'signal': 'bull' if delta > 0 else ('bear' if delta < 0 else 'neut'),
+                'note': '🐷 Hog Cash Price ($/cwt)',
+            }
+    except Exception:
+        pass
+
+    # Hog basis
+    try:
+        from core.services import data_loader as dl_inner
+        he_rows = dl_inner.query_to_df("""
+            SELECT close FROM futures_endpoint
+            WHERE commodity = 'HE' AND close IS NOT NULL
+            ORDER BY trading_day DESC LIMIT 1
+        """)
+        hog_cash2 = dl_inner.query_to_df("""
+            SELECT wtd_avg FROM nearby_futures
+            WHERE name = 'National' AND wtd_avg IS NOT NULL
+            ORDER BY report_date DESC LIMIT 1
+        """)
+        if not he_rows.empty and not hog_cash2.empty:
+            basis = float(hog_cash2.iloc[0]['wtd_avg']) - float(he_rows.iloc[0]['close'])
+            kpis['hog_basis'] = {
+                'value': f"${basis:.2f}",
+                'delta': 'cash above futures' if basis > 0 else 'cash below futures',
+                'signal': 'bull' if basis > 0 else 'bear',
+                'note': '🐷 Hog Basis',
+            }
+    except Exception:
+        pass
+
+    return kpis
 
 def _compute_lrp_kpis(lrp_rows):
     """KPIs for LRP module."""
@@ -465,9 +505,6 @@ def cutout(request):
     cutout_df = dl.get_cutout_all()
     primal_df = dl.get_cattle_primals()
     pork_df_raw = dl.get_pork_primals()
-    print('CUTOUT SHAPE:', cutout_df.shape)
-    print('CUTOUT ATTRS:', cutout_df['attribute'].unique() if 'attribute' in cutout_df.columns else 'NO COL')
-    print('CATTLE PRIMALS SHAPE:', primal_df.shape)
     summary = _rich_cutout_summary(cutout_df, primal_df, pork_df_raw)
     insight = ai.generate_module_insight('cutout', summary)
     try:
@@ -503,6 +540,7 @@ def cutout(request):
 def cash_futures(request):
     cash_df = dl.get_cash_cattle_all()
     futures_df = dl.get_futures_endpoint_all()
+    hog_cash_df = dl.get_pork_regional_prices()
     summary = _rich_basis_summary(cash_df, futures_df)
     insight = ai.generate_module_insight('cash_futures', summary)
     try:
@@ -515,11 +553,14 @@ def cash_futures(request):
         kpis = {}
 
     charts = {
-        'cash_vs_futures': _safe_chart(cb.chart_cash_vs_futures, cash_df, futures_df),
-        'basis_rolling':   _safe_chart(cb.chart_basis_rolling, cash_df, futures_df),
-        'basis_band':      _safe_chart(cb.chart_basis_band, cash_df, futures_df),
-        'basis_by_month':  _safe_chart(cb.chart_basis_by_month, cash_df, futures_df),
-        'futures_curve':   _safe_chart(cb.chart_futures_curve, futures_df),
+        'cash_vs_futures':      _safe_chart(cb.chart_cash_vs_futures, cash_df, futures_df),
+        'basis_rolling':        _safe_chart(cb.chart_basis_rolling, cash_df, futures_df),
+        'basis_by_month':       _safe_chart(cb.chart_basis_by_month, cash_df, futures_df),
+        'futures_curve':        _safe_chart(cb.chart_futures_curve, futures_df),
+        'hog_cash_vs_futures':  _safe_chart(cb.chart_hog_cash_vs_futures, hog_cash_df, futures_df),
+        'hog_basis_rolling':    _safe_chart(cb.chart_hog_basis_rolling, hog_cash_df, futures_df),
+        'hog_basis_by_month':   _safe_chart(cb.chart_hog_basis_by_month, hog_cash_df, futures_df),
+        'he_futures_curve':     _safe_chart(cb.chart_he_futures_curve, futures_df),
     }
     return render(request, 'cash_futures.html', {
         'charts': {k: v for k, v in charts.items()},
