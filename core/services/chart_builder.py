@@ -1162,3 +1162,205 @@ def chart_dashboard_basis_gauge(cash_df, futures_df, height=220):
     except Exception as e:
         return to_json(go.Figure().update_layout(**_L(height=height,
             title=f'Basis gauge unavailable: {str(e)}')))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DASHBOARD V2 CHARTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _agg_slaughter(df, period='week'):
+    """Aggregate slaughter data by period."""
+    df = df.copy()
+    df['slaughter_date'] = pd.to_datetime(df['slaughter_date'], errors='coerce')
+    df['monday'] = pd.to_datetime(df['monday_of_week'], errors='coerce')
+    df = df.dropna(subset=['slaughter_date', 'slaughter'])
+
+    if period == 'week':
+        grp = df.groupby('monday').agg(
+            slaughter=('week_to_date', 'max'),
+            year_ago=('year_ago', 'sum'),
+        ).reset_index().rename(columns={'monday': 'date'})
+        grp = _drop_partial(grp, 'slaughter')
+        tick_fmt = '%b %d'
+    elif period == 'month':
+        df['month'] = df['slaughter_date'].dt.to_period('M').apply(lambda r: r.start_time)
+        grp = df.groupby('month').agg(
+            slaughter=('slaughter', 'sum'),
+            year_ago=('year_ago', 'sum'),
+        ).reset_index().rename(columns={'month': 'date'})
+        tick_fmt = '%b %Y'
+    else:  # year
+        df['year_dt'] = pd.to_datetime(df['slaughter_date'].dt.year.astype(str) + '-01-01')
+        grp = df.groupby('year_dt').agg(
+            slaughter=('slaughter', 'sum'),
+            year_ago=('year_ago', 'sum'),
+        ).reset_index().rename(columns={'year_dt': 'date'})
+        tick_fmt = '%Y'
+
+    grp = grp.sort_values('date')
+    return grp, tick_fmt
+
+
+def chart_dash_slaughter(df, commodity='Cattle', period='week', height=260):
+    """Dashboard slaughter chart with period toggle support."""
+    grp, tick_fmt = _agg_slaughter(df, period)
+    color = GOLD if commodity == 'Cattle' else BLUE
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=grp['date'], y=grp['slaughter'],
+        mode='lines+markers', name='This Period',
+        line=dict(color=color, width=2.5),
+        marker=dict(size=5),
+        connectgaps=False,
+        hovertemplate='%{x}<br>%{y:,.0f} head<extra>This Period</extra>',
+    ))
+    if grp['year_ago'].notna().any():
+        fig.add_trace(go.Scatter(
+            x=grp['date'], y=grp['year_ago'],
+            mode='lines', name='Year Ago',
+            line=dict(color=MUTED, width=1.5, dash='dash'),
+            connectgaps=False,
+            hovertemplate='%{y:,.0f} head<extra>Year Ago</extra>',
+        ))
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(tickformat=tick_fmt, tickfont=dict(color=SUB, size=10))
+    fig.update_yaxes(tickformat=',.0f', title_text='Head')
+    return to_json(fig)
+
+
+def chart_dash_cattle_cash(df, height=260):
+    """Cash cattle price trend."""
+    df = df.copy()
+    df['report_date'] = pd.to_datetime(df['report_date'], errors='coerce')
+    df = df.sort_values('report_date').tail(260)  # last ~year
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df['report_date'], y=df['weighted_avg_price'],
+        mode='lines', name='Cash Price',
+        line=dict(color=GOLD, width=2.5),
+        fill='tozeroy', fillcolor='rgba(184,115,10,0.06)',
+        connectgaps=False,
+        hovertemplate='%{x|%b %d}<br>$%{y:.2f}/cwt<extra>Cash</extra>',
+    ))
+    # Rolling 4-week avg
+    df['roll'] = df['weighted_avg_price'].rolling(20, min_periods=1).mean()
+    fig.add_trace(go.Scatter(
+        x=df['report_date'], y=df['roll'],
+        mode='lines', name='4-wk avg',
+        line=dict(color=TEAL, width=1.5, dash='dot'),
+        connectgaps=False,
+        hovertemplate='$%{y:.2f}<extra>4-wk avg</extra>',
+    ))
+    fig.update_layout(**_L(height=height, yprefix='$'))
+    fig.update_xaxes(tickformat='%b %y', tickfont=dict(color=SUB, size=10))
+    return to_json(fig)
+
+
+def chart_dash_beef_cutout(df, height=260):
+    """Choice cutout value trend."""
+    df = df.copy()
+    df['report_date'] = pd.to_datetime(df['report_date'], errors='coerce')
+    choice = df[df['attribute'] == 'Choice'].sort_values('report_date').tail(365)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=choice['report_date'], y=choice['value'],
+        mode='lines', name='Choice Cutout',
+        line=dict(color=GOLD, width=2.5),
+        fill='tozeroy', fillcolor='rgba(184,115,10,0.06)',
+        connectgaps=False,
+        hovertemplate='%{x|%b %d}<br>$%{y:.2f}/cwt<extra>Choice</extra>',
+    ))
+    choice['roll'] = choice['value'].rolling(5, min_periods=1).mean()
+    fig.add_trace(go.Scatter(
+        x=choice['report_date'], y=choice['roll'],
+        mode='lines', name='5-day avg',
+        line=dict(color=TEAL, width=1.5, dash='dot'),
+        connectgaps=False,
+        hovertemplate='$%{y:.2f}<extra>5-day avg</extra>',
+    ))
+    fig.update_layout(**_L(height=height, yprefix='$'))
+    fig.update_xaxes(tickformat='%b %y', tickfont=dict(color=SUB, size=10))
+    return to_json(fig)
+
+
+def chart_dash_pork_regional(df, height=260):
+    """National, Iowa/SMN and Western Cornbelt hog prices on one chart."""
+    df = df.copy()
+    df['report_date'] = pd.to_datetime(df['report_date'], errors='coerce')
+    df = df.sort_values('report_date')
+
+    color_map = {'National': GOLD, 'IASWMN': BLUE, 'Western Cornbelt': GREEN}
+    fig = go.Figure()
+    label_map = {'National': 'National', 'IASWMN': 'Iowa/S.MN', 'Western Cornbelt': 'W. Cornbelt'}
+    for region, color in color_map.items():
+        sub = df[df['name'] == region].tail(365)
+        if sub.empty:
+            continue
+        fig.add_trace(go.Scatter(
+            x=sub['report_date'], y=sub['wtd_avg'],
+            mode='lines',
+            name=label_map.get(region, region),
+            line=dict(color=color, width=2),
+            connectgaps=False,
+            hovertemplate=f'{label_map.get(region, region)}: $%{{y:.2f}}<extra></extra>',
+        ))
+    fig.update_layout(**_L(height=height, yprefix='$'))
+    fig.update_xaxes(tickformat='%b %y', tickfont=dict(color=SUB, size=10))
+    return to_json(fig)
+
+
+def chart_dash_pork_cutout(df, height=260):
+    """Pork carcass value trend."""
+    df = df.copy()
+    df['report_date'] = pd.to_datetime(df['report_date'], errors='coerce')
+    carcass = df[df['commodity'] == 'Carcass'].sort_values('report_date').tail(365)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=carcass['report_date'], y=carcass['value'],
+        mode='lines', name='Pork Carcass Value',
+        line=dict(color=BLUE, width=2.5),
+        fill='tozeroy', fillcolor='rgba(26,92,158,0.06)',
+        connectgaps=False,
+        hovertemplate='%{x|%b %d}<br>$%{y:.2f}/cwt<extra>Pork Carcass</extra>',
+    ))
+    carcass['roll'] = carcass['value'].rolling(5, min_periods=1).mean()
+    fig.add_trace(go.Scatter(
+        x=carcass['report_date'], y=carcass['roll'],
+        mode='lines', name='5-day avg',
+        line=dict(color=TEAL, width=1.5, dash='dot'),
+        connectgaps=False,
+        hovertemplate='$%{y:.2f}<extra>5-day avg</extra>',
+    ))
+    fig.update_layout(**_L(height=height, yprefix='$'))
+    fig.update_xaxes(tickformat='%b %y', tickfont=dict(color=SUB, size=10))
+    return to_json(fig)
+
+
+def chart_dash_feed_futures(df, commodity='corn', height=240):
+    """Corn or soy futures — all contracts on one chart."""
+    df = df.copy()
+    df['trade_date'] = pd.to_datetime(df['trade_date'], errors='coerce')
+    sub = df[df['commodity'] == commodity].sort_values('trade_date')
+    color = GOLD if commodity == 'corn' else GREEN
+    colors_list = [color, BLUE, PURPLE, ORANGE, TEAL, RED]
+
+    fig = go.Figure()
+    for i, (symbol, grp) in enumerate(sub.groupby('symbol')):
+        contract = grp['contract_month'].iloc[0]
+        grp = grp.sort_values('trade_date')
+        fig.add_trace(go.Scatter(
+            x=grp['trade_date'], y=grp['close_price'],
+            mode='lines', name=f'{symbol} ({contract})',
+            line=dict(color=colors_list[i % len(colors_list)], width=1.8),
+            connectgaps=False,
+            hovertemplate=f'{symbol}: $%{{y:.4f}}<extra></extra>',
+        ))
+    label = 'Corn' if commodity == 'corn' else 'Soybeans'
+    fig.update_layout(**_L(height=height))
+    fig.update_xaxes(tickformat='%b %y', tickfont=dict(color=SUB, size=10))
+    fig.update_yaxes(tickprefix='$', title_text=f'{label} ($/bu)')
+    return to_json(fig)

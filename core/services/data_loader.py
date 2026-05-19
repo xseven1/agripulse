@@ -512,3 +512,83 @@ def get_hog_week_outcome(week_date, weeks_forward=4):
         WHERE pw.week > %s AND pw.week <= %s + INTERVAL '%s weeks'
         ORDER BY pw.week ASC
     """, [week_date, week_date, weeks_forward])
+
+
+# ── DASHBOARD V2 QUERIES ───────────────────────────────────────────────────────
+
+def get_cattle_slaughter_weekly():
+    """Weekly cattle slaughter for dashboard sparkline."""
+    return query_to_df("""
+        SELECT slaughter_date, monday_of_week, slaughter, week_ago, year_ago,
+               week_to_date, year
+        FROM slaughter
+        WHERE source = 'harvest3' AND commodity = 'Cattle'
+          AND period = 'Current' AND slaughter > 1000
+        ORDER BY slaughter_date ASC
+    """)
+
+
+def get_hog_slaughter_weekly():
+    """Weekly hog slaughter for dashboard sparkline."""
+    return query_to_df("""
+        SELECT slaughter_date, monday_of_week, slaughter, week_ago, year_ago,
+               week_to_date, year
+        FROM slaughter
+        WHERE source = 'harvest3' AND commodity IN ('Hogs', 'Slaughter Hogs')
+          AND period = 'Current' AND slaughter > 1000
+        ORDER BY slaughter_date ASC
+    """)
+
+
+def get_cattle_cash_price():
+    """National cash cattle price — last 52 weeks."""
+    return query_to_df("""
+        SELECT report_date, weighted_avg_price
+        FROM cash_cattle
+        WHERE class_description = 'ALL BEEF TYPE'
+          AND selling_basis = 'LIVE DELIVERED'
+          AND grade_description = 'Total all grades'
+          AND weighted_avg_price BETWEEN 100 AND 400
+        ORDER BY report_date ASC
+    """)
+
+
+def get_beef_cutout_dashboard():
+    """Choice cutout last 52 weeks."""
+    return query_to_df("""
+        SELECT report_date, attribute, value
+        FROM cutout_values
+        WHERE attribute = 'Choice' AND value IS NOT NULL
+        ORDER BY report_date ASC
+    """)
+
+
+def get_pork_regional_prices():
+    """National, Iowa/SMN and Western Cornbelt hog cash prices."""
+    return query_to_df("""
+        SELECT report_date, name, wtd_avg, price_5day, year
+        FROM nearby_futures
+        WHERE name IN ('National', 'IASWMN', 'Western Cornbelt')
+          AND wtd_avg IS NOT NULL
+        ORDER BY report_date ASC
+    """)
+
+
+def get_pork_cutout_dashboard():
+    """Pork carcass value last 52 weeks."""
+    return query_to_df("""
+        SELECT report_date, commodity, value
+        FROM pork_primals
+        WHERE commodity = 'Carcass' AND value > 0
+        ORDER BY report_date ASC
+    """)
+
+
+def get_feed_futures_dashboard():
+    """Corn and soy futures closes for dashboard."""
+    return query_to_df("""
+        SELECT commodity, symbol, contract_month, trade_date, close_price
+        FROM feed_futures
+        WHERE close_price IS NOT NULL AND close_price > 0
+        ORDER BY commodity, trade_date ASC
+    """)

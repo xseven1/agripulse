@@ -7,14 +7,7 @@
   <p>Weekly livestock market signals for ProAg advisors — USDA &amp; CME data</p>
 </div>
 
-<!-- CROSS SIGNAL AI -->
-<div class="cross-signal-card">
-  <div class="insight-label">⚡ Cross-Signal AI Insight</div>
-  <div class="insight-text">{{ cross_signal|linebreaksbr }}</div>
-</div>
-
 <!-- KPI CARDS -->
-<div class="section-label">Weekly Market Signals</div>
 <div class="kpi-row">
   {% if kpis.cattle_slaughter %}
   <a href="{% url 'slaughter' %}" class="kpi-card {{ kpis.cattle_slaughter.signal }}" style="text-decoration:none;">
@@ -58,17 +51,74 @@
   {% endif %}
 </div>
 
-<!-- SUPPLY CHARTS -->
-<div class="section-label">Supply Snapshot</div>
-<div class="three-col">
-  <div class="chart-card">
-    <div class="why-label">How is slaughter volume trending?</div>
-    <div class="chart-title">Cattle vs Hog Slaughter — Last 12 Weeks</div>
-    <div id="slaughter_sparkline" class="chart-plot"></div>
+<!-- PERIOD TOGGLE FOR SLAUGHTER -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+  <div class="section-label" style="margin:0;">Market Snapshot</div>
+  <div style="display:flex;align-items:center;gap:.5rem;">
+    <span style="font-size:.72rem;color:var(--sub);font-weight:500;">Slaughter view:</span>
+    <div class="period-bar">
+      <a href="?period=week"  class="period-btn {% if period == 'week' or not period %}active{% endif %}">Weekly</a>
+      <a href="?period=month" class="period-btn {% if period == 'month' %}active{% endif %}">Monthly</a>
+      <a href="?period=year"  class="period-btn {% if period == 'year' %}active{% endif %}">Annual</a>
+    </div>
   </div>
+</div>
+
+<!-- TWO COLUMN CATTLE vs PORK -->
+<div class="two-col">
+
+  <!-- CATTLE -->
+  <div>
+    <div class="section-label">🐄 Cattle</div>
+
+    <div class="chart-card">
+      <div class="why-label">How is cattle supply trending?</div>
+      <div class="chart-title">Weekly Cattle Slaughter</div>
+      <div id="cattle_slaughter" class="chart-plot"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="why-label">What are producers getting for live cattle?</div>
+      <div class="chart-title">Cash Cattle Price ($/cwt live)</div>
+      <div id="cattle_cash" class="chart-plot"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="why-label">What is beef demand signaling?</div>
+      <div class="chart-title">Choice Beef Cutout Value</div>
+      <div id="beef_cutout" class="chart-plot"></div>
+    </div>
+  </div>
+
+  <!-- PORK -->
+  <div>
+    <div class="section-label">🐷 Pork</div>
+
+    <div class="chart-card">
+      <div class="why-label">How is hog supply trending?</div>
+      <div class="chart-title">Weekly Hog Slaughter</div>
+      <div id="hog_slaughter" class="chart-plot"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="why-label">What are producers getting across regions?</div>
+      <div class="chart-title">Cash Hog Price — National, Iowa/S.MN, W. Cornbelt</div>
+      <div id="pork_regional" class="chart-plot"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="why-label">What is pork demand signaling?</div>
+      <div class="chart-title">Pork Carcass Value</div>
+      <div id="pork_cutout" class="chart-plot"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SPECIES MIX & COW SLAUGHTER -->
+<div class="two-col" style="margin-top:.5rem;">
   <div class="chart-card">
     <div class="why-label">What's the species mix this week?</div>
-    <div class="chart-title">Cattle vs Hog — Share of Total Slaughter</div>
+    <div class="chart-title">Cattle vs Hog Share of Total Slaughter</div>
     <div id="species_mix" class="chart-plot"></div>
   </div>
   <div class="chart-card">
@@ -78,39 +128,26 @@
   </div>
 </div>
 
-<!-- DEMAND CHARTS -->
-<div class="section-label">Demand Snapshot</div>
-<div class="three-col">
+<!-- FEED COSTS -->
+<div class="section-label" style="margin-top:1.5rem;">🌽 Feed Costs</div>
+<div class="two-col">
   <div class="chart-card">
-    <div class="why-label">Where are cutout values trending?</div>
-    <div class="chart-title">Choice vs Select Cutout — Recent Weeks</div>
-    <div id="cutout_sparkline" class="chart-plot"></div>
+    <div class="why-label">Is the cost of feeding cattle and hogs rising?</div>
+    <div class="chart-title">Corn Futures — All 2025 Contracts</div>
+    <div id="corn_futures" class="chart-plot"></div>
   </div>
   <div class="chart-card">
-    <div class="why-label">Which primals moved most this week?</div>
-    <div class="chart-title">Beef Primal Week-Over-Week Change</div>
-    <div id="primal_heatmap" class="chart-plot"></div>
-  </div>
-  <div class="chart-card">
-    <div class="why-label">Is demand above or below normal?</div>
-    <div class="chart-title">Choice Cutout vs 5-Year Seasonal Average</div>
-    <div id="cutout_vs_avg" class="chart-plot"></div>
+    <div class="why-label">How is soybean meal (protein cost) trending?</div>
+    <div class="chart-title">Soybean Futures — All 2025 Contracts</div>
+    <div id="soy_futures" class="chart-plot"></div>
   </div>
 </div>
 
-<!-- PRICE CHARTS -->
-<div class="section-label">Price Snapshot</div>
-<div class="two-col">
-  <div class="chart-card">
-    <div class="why-label">Is cash tracking futures?</div>
-    <div class="chart-title">Cash Price vs Nearby Futures — Last 8 Weeks</div>
-    <div id="cash_futures_spark" class="chart-plot"></div>
-  </div>
-  <div class="chart-card">
-    <div class="why-label">Is the basis wide, tight, or normal?</div>
-    <div class="chart-title">Current Basis vs Historical Range</div>
-    <div id="basis_gauge" class="chart-plot"></div>
-  </div>
+<!-- AI INSIGHT -->
+<div class="section-label" style="margin-top:1.5rem;">⚡ Cross-Signal AI Insight</div>
+<div class="cross-signal-card">
+  <div class="insight-label">AI Market Synthesis — Most Recent Week</div>
+  <div class="insight-text">{{ cross_signal|linebreaksbr }}</div>
 </div>
 
 <!-- MODULE NAV -->
@@ -119,7 +156,7 @@
   <a href="{% url 'slaughter' %}" class="module-card">
     <div class="module-icon">📊</div>
     <div class="module-name">Slaughter Pace Tracker</div>
-    <div class="module-desc">Weekly harvest, cow slaughter, carcass weights, implied production</div>
+    <div class="module-desc">Deep dive — weekly harvest, cow slaughter, carcass weights, implied production</div>
   </a>
   <a href="{% url 'cutout' %}" class="module-card">
     <div class="module-icon">🥩</div>
@@ -144,12 +181,12 @@
   <a href="{% url 'comparable' %}" class="module-card">
     <div class="module-icon">🔍</div>
     <div class="module-name">Market Analog Finder</div>
-    <div class="module-desc">Find the most similar historical weeks and see what happened next — 2004 to present</div>
+    <div class="module-desc">Find the most similar historical weeks and see what happened next</div>
   </a>
   <a href="{% url 'chatbot' %}" class="module-card">
     <div class="module-icon">💬</div>
     <div class="module-name">AI Market Assistant</div>
-    <div class="module-desc">Ask anything across all modules — context-aware market analyst</div>
+    <div class="module-desc">Ask anything — market direction, hedging, producer strategy</div>
   </a>
 </div>
 

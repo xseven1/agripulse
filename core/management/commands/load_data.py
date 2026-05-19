@@ -48,6 +48,7 @@ class Command(BaseCommand):
         self.load_cow_harvest()
         self.load_pork_primals()
         self.load_harvest_usda()
+        self.load_feed_futures()
         self.stdout.write(self.style.SUCCESS('All data loaded successfully.'))
 
     def load_slaughter(self):
@@ -55,7 +56,7 @@ class Command(BaseCommand):
         Slaughter.objects.all().delete()
 
         # Load Harvest_3
-        df = pd.read_csv(DATA_DIR / 'Harvest_3.csv')
+        df = pd.read_csv(DATA_DIR / 'Harvest 3.csv')
         df = df[df['period'] == 'Current']  # only current period rows
         objs = []
         for _, row in df.iterrows():
@@ -81,7 +82,7 @@ class Command(BaseCommand):
         Slaughter.objects.bulk_create(objs, batch_size=500)
 
         # Load Historical_Harvest to fill earlier years
-        df2 = pd.read_csv(DATA_DIR / 'Historical_Harvest.csv')
+        df2 = pd.read_csv(DATA_DIR / 'Historical Harvest.csv')
         objs2 = []
         for _, row in df2.iterrows():
             objs2.append(Slaughter(
@@ -102,7 +103,7 @@ class Command(BaseCommand):
     def load_carcass_weights(self):
         self.stdout.write('Loading carcass weights...')
         CarcassWeight.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Carcass_Weights.csv')
+        df = pd.read_csv(DATA_DIR / 'Carcass Weights.csv')
         objs = [
             CarcassWeight(
                 report_date=parse_date(row.get('report_date')),
@@ -121,7 +122,7 @@ class Command(BaseCommand):
     def load_cutout(self):
         self.stdout.write('Loading cutout values...')
         CutoutValue.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Cutout_Select_Choice.csv')
+        df = pd.read_csv(DATA_DIR / 'Cutout (Select_Choice).csv')
         objs = [
             CutoutValue(
                 report_date=parse_date(row.get('report_date')),
@@ -139,7 +140,7 @@ class Command(BaseCommand):
     def load_cattle_primal(self):
         self.stdout.write('Loading cattle primal values...')
         CattlePrimal.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Cattle_Primal_Values.csv')
+        df = pd.read_csv(DATA_DIR / 'Cattle Primal Values.csv')
         objs = [
             CattlePrimal(
                 report_date=parse_date(row.get('report_date')),
@@ -158,7 +159,7 @@ class Command(BaseCommand):
     def load_cash_cattle(self):
         self.stdout.write('Loading cash cattle...')
         CashCattle.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Cash_Cattle.csv')
+        df = pd.read_csv(DATA_DIR / 'Cash Cattle.csv')
         # Filter to most useful subset to keep table lean
         df = df[
             (df['selling_basis_description'] == 'LIVE DELIVERED') &
@@ -181,7 +182,7 @@ class Command(BaseCommand):
     def load_nearby_futures(self):
         self.stdout.write('Loading nearby futures...')
         NearbyFutures.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Nearby_Futures.csv')
+        df = pd.read_csv(DATA_DIR / 'Nearby Futures.csv')
         objs = [
             NearbyFutures(
                 report_date=parse_date(row.get('report_date')),
@@ -219,7 +220,7 @@ class Command(BaseCommand):
     def load_lrp_quotes(self):
         self.stdout.write('Loading LRP quotes...')
         LRPQuote.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'LRP_Quotes.csv')
+        df = pd.read_csv(DATA_DIR / 'LRP Quotes.csv')
         objs = [
             LRPQuote(
                 commodity=clean(row.get('Commodity')),
@@ -250,7 +251,7 @@ class Command(BaseCommand):
     def load_lrp_futures(self):
         self.stdout.write('Loading LRP futures...')
         LRPFutures.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'LRP_Quotes_Futures.csv')
+        df = pd.read_csv(DATA_DIR / 'LRP Quotes Futures.csv')
         objs = [
             LRPFutures(
                 previous=clean(row.get('Previous')),
@@ -331,7 +332,7 @@ class Command(BaseCommand):
         from core.models import HarvestUSDA
         self.stdout.write('Loading Harvest USDA...')
         HarvestUSDA.objects.all().delete()
-        df = pd.read_csv(DATA_DIR / 'Harvest  USDA.csv')
+        df = pd.read_csv(DATA_DIR / 'Harvest - USDA.csv')
         objs = [
             HarvestUSDA(
                 report_date=parse_date(row.get('report_date')),
@@ -346,3 +347,58 @@ class Command(BaseCommand):
         ]
         HarvestUSDA.objects.bulk_create(objs, batch_size=500)
         self.stdout.write(f'  Harvest USDA: {len(objs)} rows')
+
+    def load_feed_futures(self):
+        from core.models import FeedFutures
+        import glob
+        self.stdout.write('Loading feed futures...')
+        FeedFutures.objects.all().delete()
+        objs = []
+
+        month_map = {
+            'H': 'Mar', 'K': 'May', 'N': 'Jul', 'U': 'Sep',
+            'Z': 'Dec', 'F': 'Jan', 'G': 'Feb', 'Q': 'Aug',
+            'V': 'Oct', 'X': 'Nov',
+        }
+
+        for commodity, folder, prefix in [
+            ('corn', 'Corn 2025 Futures', 'ZC'),
+            ('soy', 'Soybeans 2025 Futures', 'ZS'),
+        ]:
+            folder_path = DATA_DIR / folder
+            if not folder_path.exists():
+                continue
+            for fpath in folder_path.glob('*.xlsx'):
+                try:
+                    df = pd.read_excel(fpath, header=1)
+                    df.columns = [str(c).strip() for c in df.columns]
+                    date_col = next((c for c in df.columns if c.lower() in ('time', 'date')), None)
+                    close_col = next((c for c in df.columns if c.lower() == 'close'), None)
+                    open_col = next((c for c in df.columns if c.lower() == 'open'), None)
+                    high_col = next((c for c in df.columns if c.lower() == 'high'), None)
+                    low_col = next((c for c in df.columns if c.lower() == 'low'), None)
+                    vol_col = next((c for c in df.columns if c.lower() == 'volume'), None)
+                    if not date_col or not close_col:
+                        continue
+                    symbol = fpath.stem
+                    month_code = symbol[2] if len(symbol) > 2 else '?'
+                    contract_month = month_map.get(month_code, month_code)
+                    df['trade_date'] = pd.to_datetime(df[date_col], errors='coerce')
+                    df = df.dropna(subset=['trade_date'])
+                    for _, row in df.iterrows():
+                        objs.append(FeedFutures(
+                            commodity=commodity,
+                            symbol=symbol,
+                            contract_month=contract_month,
+                            trade_date=parse_date(row['trade_date']),
+                            open_price=clean(row.get(open_col)) if open_col else None,
+                            high_price=clean(row.get(high_col)) if high_col else None,
+                            low_price=clean(row.get(low_col)) if low_col else None,
+                            close_price=clean(row.get(close_col)),
+                            volume=clean(row.get(vol_col)) if vol_col else None,
+                        ))
+                except Exception as e:
+                    self.stdout.write(f'  Skipping {fpath.name}: {e}')
+
+        FeedFutures.objects.bulk_create(objs, batch_size=500)
+        self.stdout.write(f'  Feed futures: {len(objs)} rows')

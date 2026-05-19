@@ -226,3 +226,19 @@ class HarvestUSDA(models.Model):
     class Meta:
         db_table = 'harvest_usda'
         indexes = [models.Index(fields=['report_date'])]
+
+
+class FeedFutures(models.Model):
+    commodity = models.CharField(max_length=20, null=True)  # 'corn' or 'soy'
+    symbol = models.CharField(max_length=20, null=True)
+    contract_month = models.CharField(max_length=10, null=True)
+    trade_date = models.DateField(null=True)
+    open_price = models.FloatField(null=True)
+    high_price = models.FloatField(null=True)
+    low_price = models.FloatField(null=True)
+    close_price = models.FloatField(null=True)
+    volume = models.FloatField(null=True)
+
+    class Meta:
+        db_table = 'feed_futures'
+        indexes = [models.Index(fields=['commodity', 'trade_date'])]
